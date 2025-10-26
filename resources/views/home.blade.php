@@ -414,7 +414,7 @@
 
     <!-- How It Works Section -->
     <section class="how-it-works-section fade-in-up">
-      <h2 class="section-title">⚙️ Jinsi Inavyofanya Kazi</h2>
+      <h2 class="section-title">⚙️ Jinsi Inavyofanya Kazi Kwa Tendapoa</h2>
       <ol class="steps-list">
         <li class="step-item">
           <div class="step-number">1</div>
