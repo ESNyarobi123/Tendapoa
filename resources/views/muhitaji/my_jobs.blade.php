@@ -518,8 +518,14 @@
               </div>
             @endif
 
-            <!-- Action Button -->
-            <div style="margin-top: 16px; text-align: right;">
+            <!-- Action Buttons -->
+            <div style="margin-top: 16px; display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap;">
+              @if(in_array($job->status, ['posted', 'assigned']))
+                <a class="btn btn-outline" href="{{ route('jobs.edit', $job) }}">
+                  <span>✏️</span>
+                  Badilisha
+                </a>
+              @endif
               <a class="btn btn-primary" href="{{ route('jobs.show', $job) }}">
                 <span>👁️</span>
                 Fungua Kazi

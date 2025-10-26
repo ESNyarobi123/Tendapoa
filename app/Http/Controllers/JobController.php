@@ -38,6 +38,10 @@ class JobController extends Controller
             'phone'       => ['required','regex:/^(0[6-7]\d{8}|255[6-7]\d{8})$/'],
         ],[
             'phone.regex' => 'Weka 06/07xxxxxxxx au 2556/2557xxxxxxxx.',
+            'lat.required' => 'Eneo la kazi ni lazima. Tafadhali weka pini eneo la kazi kwenye ramani.',
+            'lng.required' => 'Eneo la kazi ni lazima. Tafadhali weka pini eneo la kazi kwenye ramani.',
+            'lat.between' => 'Latitude si sahihi. Tafadhali weka eneo sahihi kwenye ramani.',
+            'lng.between' => 'Longitude si sahihi. Tafadhali weka eneo sahihi kwenye ramani.',
         ]);
 
         $job = Job::create([
@@ -76,6 +80,321 @@ class JobController extends Controller
         }
 
         return redirect()->route('jobs.pay.wait', $job);
+    }
+
+    public function edit(Job $job)
+    {
+        $this->ensureMuhitajiOrAdmin();
+        
+        // Only allow editing if job is posted or assigned (not in progress or completed)
+        if (!in_array($job->status, ['posted', 'assigned'])) {
+            return back()->withErrors(['edit' => 'Huwezi kubadilisha kazi ambayo imeanza au imekamilika.']);
+        }
+        
+        // Only job owner can edit
+        if ($job->user_id !== Auth::id()) {
+            abort(403, 'Huna ruhusa ya kubadilisha kazi hii.');
+        }
+        
+        return view('jobs.edit', [
+            'job' => $job,
+            'categories' => Category::all()
+        ]);
+    }
+
+    public function update(Request $r, Job $job, ZenoPayService $zeno)
+    {
+        $this->ensureMuhitajiOrAdmin();
+        
+        // Only allow editing if job is posted or assigned
+        if (!in_array($job->status, ['posted', 'assigned'])) {
+            return back()->withErrors(['edit' => 'Huwezi kubadilisha kazi ambayo imeanza au imekamilika.']);
+        }
+        
+        // Only job owner can edit
+        if ($job->user_id !== Auth::id()) {
+            abort(403, 'Huna ruhusa ya kubadilisha kazi hii.');
+        }
+
+        $r->validate([
+            'title'       => ['required','max:120'],
+            'category_id' => ['required','exists:categories,id'],
+            'price'       => ['required','integer','min:500'],
+            'lat'         => ['required','numeric','between:-90,90'],
+            'lng'         => ['required','numeric','between:-180,180'],
+        ],[
+            'lat.required' => 'Eneo la kazi ni lazima. Tafadhali weka pini eneo la kazi kwenye ramani.',
+            'lng.required' => 'Eneo la kazi ni lazima. Tafadhali weka pini eneo la kazi kwenye ramani.',
+            'lat.between' => 'Latitude si sahihi. Tafadhali weka eneo sahihi kwenye ramani.',
+            'lng.between' => 'Longitude si sahihi. Tafadhali weka eneo sahihi kwenye ramani.',
+        ]);
+
+        $newPrice = (int) $r->input('price');
+        $oldPrice = $job->price;
+        $priceDifference = $newPrice - $oldPrice;
+
+        // Validate price increase only
+        if ($priceDifference < 0) {
+            return back()->withErrors(['price' => 'Huwezi kupunguza bei ya kazi. Unaweza kuongeza tu.']);
+        }
+
+        // Update job details
+        $job->update([
+            'title'       => $r->input('title'),
+            'category_id' => (int) $r->input('category_id'),
+            'description' => $r->input('description'),
+            'price'       => $newPrice,
+            'lat'         => (float) $r->input('lat'),
+            'lng'         => (float) $r->input('lng'),
+            'address_text'=> $r->input('address_text'),
+        ]);
+
+        // If price increased, process additional payment
+        if ($priceDifference > 0) {
+            $orderId = (string) Str::ulid();
+            $job->payment()->create([
+                'order_id' => $orderId,
+                'amount'   => $priceDifference,
+                'status'   => 'PENDING',
+            ]);
+
+            $buyer = Auth::user();
+            $payload = [
+                'order_id'    => $orderId,
+                'buyer_email' => $buyer?->email ?? 'client@tendapoa.local',
+                'buyer_name'  => $buyer?->name  ?? 'Client',
+                'buyer_phone' => $buyer?->phone ?? '000000000',
+                'amount'      => $priceDifference,
+                'webhook_url' => route('zeno.webhook'),
+            ];
+
+            $res = $zeno->startPayment($payload);
+            if (!$res['ok']) {
+                return back()->withErrors(['pay'=>'Imeshindikana kuanzisha malipo ya ziada. Jaribu tena.']);
+            }
+
+            return redirect()->route('jobs.pay.wait', $job)
+                ->with('success', 'Kazi imebadilishwa! Malipo ya ziada ya TZS ' . number_format($priceDifference) . ' yanahitajika.');
+        }
+
+        return redirect()->route('my.jobs')
+            ->with('success', 'Kazi imebadilishwa kwa mafanikio!');
+    }
+
+    // API Methods for Job Editing
+    public function apiEdit(Job $job)
+    {
+        $this->ensureMuhitajiOrAdmin();
+        
+        // Only allow editing if job is posted or assigned
+        if (!in_array($job->status, ['posted', 'assigned'])) {
+            return response()->json([
+                'error' => 'Huwezi kubadilisha kazi ambayo imeanza au imekamilika.',
+                'status' => 'error'
+            ], 400);
+        }
+        
+        // Only job owner can edit
+        if ($job->user_id !== Auth::id()) {
+            return response()->json([
+                'error' => 'Huna ruhusa ya kubadilisha kazi hii.',
+                'status' => 'forbidden'
+            ], 403);
+        }
+        
+        return response()->json([
+            'job' => [
+                'id' => $job->id,
+                'title' => $job->title,
+                'description' => $job->description,
+                'price' => $job->price,
+                'category_id' => $job->category_id,
+                'lat' => $job->lat,
+                'lng' => $job->lng,
+                'address_text' => $job->address_text,
+                'status' => $job->status,
+                'created_at' => $job->created_at,
+                'updated_at' => $job->updated_at,
+            ],
+            'categories' => \App\Models\Category::all(),
+            'can_edit' => true,
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiUpdate(Request $r, Job $job, ZenoPayService $zeno)
+    {
+        $this->ensureMuhitajiOrAdmin();
+        
+        // Only allow editing if job is posted or assigned
+        if (!in_array($job->status, ['posted', 'assigned'])) {
+            return response()->json([
+                'error' => 'Huwezi kubadilisha kazi ambayo imeanza au imekamilika.',
+                'status' => 'error'
+            ], 400);
+        }
+        
+        // Only job owner can edit
+        if ($job->user_id !== Auth::id()) {
+            return response()->json([
+                'error' => 'Huna ruhusa ya kubadilisha kazi hii.',
+                'status' => 'forbidden'
+            ], 403);
+        }
+
+        $r->validate([
+            'title'       => ['required','max:120'],
+            'category_id' => ['required','exists:categories,id'],
+            'price'       => ['required','integer','min:500'],
+            'lat'         => ['required','numeric','between:-90,90'],
+            'lng'         => ['required','numeric','between:-180,180'],
+        ],[
+            'lat.required' => 'Eneo la kazi ni lazima.',
+            'lng.required' => 'Eneo la kazi ni lazima.',
+            'lat.between' => 'Latitude si sahihi.',
+            'lng.between' => 'Longitude si sahihi.',
+        ]);
+
+        $newPrice = (int) $r->input('price');
+        $oldPrice = $job->price;
+        $priceDifference = $newPrice - $oldPrice;
+
+        // Validate price increase only
+        if ($priceDifference < 0) {
+            return response()->json([
+                'error' => 'Huwezi kupunguza bei ya kazi. Unaweza kuongeza tu.',
+                'status' => 'validation_error',
+                'field' => 'price'
+            ], 422);
+        }
+
+        // Update job details
+        $job->update([
+            'title'       => $r->input('title'),
+            'category_id' => (int) $r->input('category_id'),
+            'description' => $r->input('description'),
+            'price'       => $newPrice,
+            'lat'         => (float) $r->input('lat'),
+            'lng'         => (float) $r->input('lng'),
+            'address_text'=> $r->input('address_text'),
+        ]);
+
+        $response = [
+            'message' => 'Kazi imebadilishwa kwa mafanikio!',
+            'job' => [
+                'id' => $job->id,
+                'title' => $job->title,
+                'price' => $job->price,
+                'status' => $job->status,
+                'updated_at' => $job->updated_at,
+            ],
+            'status' => 'success'
+        ];
+
+        // If price increased, process additional payment
+        if ($priceDifference > 0) {
+            $orderId = (string) Str::ulid();
+            $job->payment()->create([
+                'order_id' => $orderId,
+                'amount'   => $priceDifference,
+                'status'   => 'PENDING',
+            ]);
+
+            $buyer = Auth::user();
+            $payload = [
+                'order_id'    => $orderId,
+                'buyer_email' => $buyer?->email ?? 'client@tendapoa.local',
+                'buyer_name'  => $buyer?->name  ?? 'Client',
+                'buyer_phone' => $buyer?->phone ?? '000000000',
+                'amount'      => $priceDifference,
+                'webhook_url' => route('zeno.webhook'),
+            ];
+
+            $res = $zeno->startPayment($payload);
+            if (!$res['ok']) {
+                return response()->json([
+                    'error' => 'Imeshindikana kuanzisha malipo ya ziada. Jaribu tena.',
+                    'status' => 'payment_error'
+                ], 500);
+            }
+
+            $response['payment_required'] = true;
+            $response['payment_amount'] = $priceDifference;
+            $response['payment_url'] = route('jobs.pay.wait', $job);
+            $response['message'] = 'Kazi imebadilishwa! Malipo ya ziada ya TZS ' . number_format($priceDifference) . ' yanahitajika.';
+        }
+
+        return response()->json($response);
+    }
+
+    public function apiStore(Request $r, ZenoPayService $zeno)
+    {
+        $this->ensureMuhitajiOrAdmin();
+
+        $r->validate([
+            'title'       => ['required','max:120'],
+            'category_id' => ['required','exists:categories,id'],
+            'price'       => ['required','integer','min:500'],
+            'lat'         => ['required','numeric','between:-90,90'],
+            'lng'         => ['required','numeric','between:-180,180'],
+            'phone'       => ['required','regex:/^(0[6-7]\d{8}|255[6-7]\d{8})$/'],
+        ],[
+            'phone.regex' => 'Weka 06/07xxxxxxxx au 2556/2557xxxxxxxx.',
+            'lat.required' => 'Eneo la kazi ni lazima.',
+            'lng.required' => 'Eneo la kazi ni lazima.',
+            'lat.between' => 'Latitude si sahihi.',
+            'lng.between' => 'Longitude si sahihi.',
+        ]);
+
+        $job = Job::create([
+            'user_id'     => Auth::id(),
+            'category_id' => (int) $r->input('category_id'),
+            'title'       => $r->input('title'),
+            'description' => $r->input('description'),
+            'price'       => (int) $r->input('price'),
+            'lat'         => (float) $r->input('lat'),
+            'lng'         => (float) $r->input('lng'),
+            'address_text'=> $r->input('address_text'),
+            'status'      => 'posted',
+            'published_at'=> now(),
+        ]);
+
+        $orderId = (string) Str::ulid();
+        $job->payment()->create([
+            'order_id' => $orderId,
+            'amount'   => $job->price,
+            'status'   => 'PENDING',
+        ]);
+
+        $buyer = Auth::user();
+        $payload = [
+            'order_id'    => $orderId,
+            'buyer_email' => $buyer?->email ?? 'client@tendapoa.local',
+            'buyer_name'  => $buyer?->name  ?? 'Client',
+            'buyer_phone' => $r->input('phone'),
+            'amount'      => $job->price,
+            'webhook_url' => route('zeno.webhook'),
+        ];
+
+        $res = $zeno->startPayment($payload);
+        if (!$res['ok']) {
+            return response()->json([
+                'error' => 'Imeshindikana kuanzisha malipo. Jaribu tena.',
+                'status' => 'payment_error'
+            ], 500);
+        }
+
+        return response()->json([
+            'message' => 'Kazi imechapishwa! Malipo yanahitajika.',
+            'job' => [
+                'id' => $job->id,
+                'title' => $job->title,
+                'price' => $job->price,
+                'status' => $job->status,
+            ],
+            'payment_url' => route('jobs.pay.wait', $job),
+            'status' => 'success'
+        ]);
     }
 
     public function wait(Job $job)

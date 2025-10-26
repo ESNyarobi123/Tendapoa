@@ -725,5 +725,817 @@ class AdminController extends Controller
         // For now, we'll just return success
         return back()->with('success', "Message sent to {$user->name}!");
     }
+
+    // API Methods
+    public function apiDashboard()
+    {
+        $stats = [
+            'total_users' => User::count(),
+            'muhitaji_count' => User::where('role', 'muhitaji')->count(),
+            'mfanyakazi_count' => User::where('role', 'mfanyakazi')->count(),
+            'total_jobs' => Job::count(),
+            'active_jobs' => Job::whereIn('status', ['posted', 'assigned', 'in_progress'])->count(),
+            'completed_jobs' => Job::where('status', 'completed')->count(),
+            'total_messages' => PrivateMessage::count(),
+            'total_revenue' => Payment::where('status', 'paid')->sum('amount'),
+            'pending_withdrawals' => Withdrawal::where('status', 'pending')->count(),
+        ];
+
+        // Recent activities
+        $recentJobs = Job::with(['muhitaji', 'acceptedWorker'])
+            ->latest()
+            ->limit(10)
+            ->get();
+
+        $recentUsers = User::latest()->limit(10)->get();
+
+        return response()->json([
+            'stats' => $stats,
+            'recent_jobs' => $recentJobs->map(function($job) {
+                return [
+                    'id' => $job->id,
+                    'title' => $job->title,
+                    'status' => $job->status,
+                    'price' => $job->price,
+                    'muhitaji' => [
+                        'id' => $job->muhitaji->id,
+                        'name' => $job->muhitaji->name,
+                    ],
+                    'accepted_worker' => $job->acceptedWorker ? [
+                        'id' => $job->acceptedWorker->id,
+                        'name' => $job->acceptedWorker->name,
+                    ] : null,
+                    'created_at' => $job->created_at,
+                ];
+            }),
+            'recent_users' => $recentUsers->map(function($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'created_at' => $user->created_at,
+                ];
+            }),
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiUsers(Request $request)
+    {
+        $query = User::with('wallet');
+
+        // Search
+        if ($search = $request->get('search')) {
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%");
+            });
+        }
+
+        // Filter by role
+        if ($role = $request->get('role')) {
+            $query->where('role', $role);
+        }
+
+        $users = $query->latest()->paginate(20);
+
+        return response()->json([
+            'users' => $users->items(),
+            'pagination' => [
+                'current_page' => $users->currentPage(),
+                'last_page' => $users->lastPage(),
+                'per_page' => $users->perPage(),
+                'total' => $users->total(),
+                'has_more' => $users->hasMorePages()
+            ],
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiUserDetails(User $user)
+    {
+        try {
+            // Load all user relationships
+            $user->load([
+                'jobs' => fn($q) => $q->with(['acceptedWorker', 'category'])->latest(),
+                'assignedJobs' => fn($q) => $q->with(['muhitaji', 'category'])->latest(),
+                'wallet',
+                'withdrawals' => fn($q) => $q->latest(),
+                'sentMessages' => fn($q) => $q->with(['receiver', 'job'])->latest()->limit(50),
+                'receivedMessages' => fn($q) => $q->with(['sender', 'job'])->latest()->limit(50),
+            ]);
+
+            // Get comprehensive user statistics
+            $stats = [
+                'jobs_posted' => $user->jobs()->count(),
+                'jobs_assigned' => $user->assignedJobs()->count(),
+                'jobs_completed' => $user->assignedJobs()->where('status', 'completed')->count(),
+                'jobs_in_progress' => $user->assignedJobs()->where('status', 'in_progress')->count(),
+                'jobs_cancelled' => $user->jobs()->where('status', 'cancelled')->count(),
+                'wallet_balance' => $user->wallet->balance ?? 0,
+                'total_earned' => WalletTransaction::where('user_id', $user->id)
+                    ->where('type', 'credit')
+                    ->sum('amount'),
+                'total_spent' => WalletTransaction::where('user_id', $user->id)
+                    ->where('type', 'debit')
+                    ->sum('amount'),
+                'total_withdrawn' => Withdrawal::where('user_id', $user->id)
+                    ->where('status', 'paid')
+                    ->sum('amount'),
+                'pending_withdrawals' => Withdrawal::where('user_id', $user->id)
+                    ->where('status', 'pending')
+                    ->sum('amount'),
+                'messages_sent' => PrivateMessage::where('sender_id', $user->id)->count(),
+                'messages_received' => PrivateMessage::where('receiver_id', $user->id)->count(),
+                'total_conversations' => PrivateMessage::where('sender_id', $user->id)
+                    ->orWhere('receiver_id', $user->id)
+                    ->distinct('work_order_id')
+                    ->count('work_order_id'),
+            ];
+
+            // Recent wallet transactions
+            $transactions = WalletTransaction::where('user_id', $user->id)
+                ->latest()
+                ->limit(50)
+                ->get();
+
+            return response()->json([
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'role' => $user->role,
+                    'lat' => $user->lat,
+                    'lng' => $user->lng,
+                    'created_at' => $user->created_at,
+                ],
+                'stats' => $stats,
+                'transactions' => $transactions->map(function($transaction) {
+                    return [
+                        'id' => $transaction->id,
+                        'type' => $transaction->type,
+                        'amount' => $transaction->amount,
+                        'description' => $transaction->description,
+                        'reference' => $transaction->reference,
+                        'created_at' => $transaction->created_at,
+                    ];
+                }),
+                'status' => 'success'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error loading user details: ' . $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
+
+    public function apiViewUserDashboard(User $user)
+    {
+        $role = $user->role;
+
+        if ($role === 'muhitaji') {
+            $jobs = Job::where('user_id', $user->id)
+                ->with(['acceptedWorker', 'category'])
+                ->latest()
+                ->paginate(10);
+
+            $stats = [
+                'total_jobs' => Job::where('user_id', $user->id)->count(),
+                'active_jobs' => Job::where('user_id', $user->id)
+                    ->whereIn('status', ['posted', 'assigned', 'in_progress'])
+                    ->count(),
+                'completed_jobs' => Job::where('user_id', $user->id)
+                    ->where('status', 'completed')
+                    ->count(),
+            ];
+
+            return response()->json([
+                'role' => 'muhitaji',
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                ],
+                'jobs' => $jobs->items(),
+                'stats' => $stats,
+                'status' => 'success'
+            ]);
+        }
+
+        if ($role === 'mfanyakazi') {
+            $assignedJobs = Job::where('accepted_worker_id', $user->id)
+                ->with(['muhitaji', 'category'])
+                ->latest()
+                ->paginate(10);
+
+            $wallet = $user->wallet;
+            $balance = $wallet ? $wallet->balance : 0;
+
+            $stats = [
+                'total_jobs' => Job::where('accepted_worker_id', $user->id)->count(),
+                'completed_jobs' => Job::where('accepted_worker_id', $user->id)
+                    ->where('status', 'completed')
+                    ->count(),
+                'wallet_balance' => $balance,
+            ];
+
+            return response()->json([
+                'role' => 'mfanyakazi',
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                ],
+                'assigned_jobs' => $assignedJobs->items(),
+                'stats' => $stats,
+                'wallet_balance' => $balance,
+                'status' => 'success'
+            ]);
+        }
+
+        return response()->json([
+            'error' => 'Dashboard haijulikani kwa role hii.',
+            'status' => 'error'
+        ], 404);
+    }
+
+    public function apiMonitorUser(User $user)
+    {
+        // Get recent activities
+        $recentJobs = Job::where('user_id', $user->id)
+            ->orWhere('accepted_worker_id', $user->id)
+            ->with(['muhitaji', 'acceptedWorker'])
+            ->latest()
+            ->limit(20)
+            ->get();
+
+        $recentMessages = PrivateMessage::where('sender_id', $user->id)
+            ->orWhere('receiver_id', $user->id)
+            ->with(['sender', 'receiver', 'job'])
+            ->latest()
+            ->limit(50)
+            ->get();
+
+        $recentTransactions = WalletTransaction::where('user_id', $user->id)
+            ->latest()
+            ->limit(20)
+            ->get();
+
+        // Activity timeline
+        $activities = collect();
+
+        // Add jobs
+        foreach ($recentJobs as $job) {
+            $activities->push([
+                'type' => 'job',
+                'data' => [
+                    'id' => $job->id,
+                    'title' => $job->title,
+                    'status' => $job->status,
+                    'price' => $job->price,
+                ],
+                'timestamp' => $job->created_at,
+            ]);
+        }
+
+        // Add messages
+        foreach ($recentMessages as $message) {
+            $activities->push([
+                'type' => 'message',
+                'data' => [
+                    'id' => $message->id,
+                    'message' => substr($message->message, 0, 100),
+                    'sender' => $message->sender->name,
+                    'receiver' => $message->receiver->name,
+                ],
+                'timestamp' => $message->created_at,
+            ]);
+        }
+
+        // Add transactions
+        foreach ($recentTransactions as $transaction) {
+            $activities->push([
+                'type' => 'transaction',
+                'data' => [
+                    'id' => $transaction->id,
+                    'type' => $transaction->type,
+                    'amount' => $transaction->amount,
+                    'description' => $transaction->description,
+                ],
+                'timestamp' => $transaction->created_at,
+            ]);
+        }
+
+        // Sort by timestamp
+        $activities = $activities->sortByDesc('timestamp')->values();
+
+        return response()->json([
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+            ],
+            'activities' => $activities,
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiEditUser(User $user)
+    {
+        return response()->json([
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'role' => $user->role,
+                'lat' => $user->lat,
+                'lng' => $user->lng,
+            ],
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiUpdateUser(Request $request, User $user)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,' . $user->id,
+            'phone' => 'nullable|string|max:20',
+            'role' => 'required|in:muhitaji,mfanyakazi,admin',
+            'lat' => 'nullable|numeric',
+            'lng' => 'nullable|numeric',
+        ]);
+
+        $user->update($request->all());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User updated successfully!',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'role' => $user->role,
+                'lat' => $user->lat,
+                'lng' => $user->lng,
+            ],
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiDeleteUser(User $user)
+    {
+        // Prevent admin from deleting themselves
+        if ($user->id === Auth::id()) {
+            return response()->json([
+                'error' => 'Huwezi kujifuta!',
+                'status' => 'error'
+            ], 400);
+        }
+
+        $userName = $user->name;
+        $user->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "User {$userName} deleted successfully!",
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiToggleUserStatus(User $user)
+    {
+        $user->is_active = !$user->is_active;
+        $user->save();
+
+        $status = $user->is_active ? 'activated' : 'suspended';
+        
+        return response()->json([
+            'success' => true,
+            'message' => "User {$user->name} has been {$status}!",
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'is_active' => $user->is_active,
+            ],
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiSendMessageToUser(Request $request, User $user)
+    {
+        $request->validate([
+            'message' => 'required|string|max:1000',
+        ]);
+
+        // Create a system message (you can create a system_messages table)
+        // For now, we'll just return success
+        return response()->json([
+            'success' => true,
+            'message' => "Message sent to {$user->name}!",
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiJobs(Request $request)
+    {
+        $query = Job::with(['muhitaji', 'acceptedWorker', 'category']);
+
+        // Filter by status
+        if ($status = $request->get('status')) {
+            $query->where('status', $status);
+        }
+
+        // Search
+        if ($search = $request->get('search')) {
+            $query->where('title', 'like', "%{$search}%");
+        }
+
+        $jobs = $query->latest()->paginate(20);
+
+        return response()->json([
+            'jobs' => $jobs->items(),
+            'pagination' => [
+                'current_page' => $jobs->currentPage(),
+                'last_page' => $jobs->lastPage(),
+                'per_page' => $jobs->perPage(),
+                'total' => $jobs->total(),
+                'has_more' => $jobs->hasMorePages()
+            ],
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiJobDetails(Job $job)
+    {
+        $job->load([
+            'muhitaji',
+            'acceptedWorker',
+            'category',
+            'comments.user',
+            'privateMessages.sender',
+            'privateMessages.receiver',
+            'payment',
+        ]);
+
+        return response()->json([
+            'job' => [
+                'id' => $job->id,
+                'title' => $job->title,
+                'description' => $job->description,
+                'price' => $job->price,
+                'status' => $job->status,
+                'lat' => $job->lat,
+                'lng' => $job->lng,
+                'address_text' => $job->address_text,
+                'created_at' => $job->created_at,
+                'muhitaji' => [
+                    'id' => $job->muhitaji->id,
+                    'name' => $job->muhitaji->name,
+                    'email' => $job->muhitaji->email,
+                    'phone' => $job->muhitaji->phone,
+                ],
+                'accepted_worker' => $job->acceptedWorker ? [
+                    'id' => $job->acceptedWorker->id,
+                    'name' => $job->acceptedWorker->name,
+                    'email' => $job->acceptedWorker->email,
+                    'phone' => $job->acceptedWorker->phone,
+                ] : null,
+                'category' => [
+                    'id' => $job->category->id,
+                    'name' => $job->category->name,
+                    'slug' => $job->category->slug,
+                ],
+                'comments' => $job->comments->map(function($comment) {
+                    return [
+                        'id' => $comment->id,
+                        'message' => $comment->message,
+                        'bid_amount' => $comment->bid_amount,
+                        'is_application' => $comment->is_application,
+                        'created_at' => $comment->created_at,
+                        'user' => [
+                            'id' => $comment->user->id,
+                            'name' => $comment->user->name,
+                            'role' => $comment->user->role,
+                        ]
+                    ];
+                }),
+                'payment' => $job->payment ? [
+                    'id' => $job->payment->id,
+                    'amount' => $job->payment->amount,
+                    'status' => $job->payment->status,
+                    'order_id' => $job->payment->order_id,
+                ] : null,
+            ],
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiForceCompleteJob(Job $job)
+    {
+        $job->update([
+            'status' => 'completed',
+            'completed_at' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Job '{$job->title}' has been force completed!",
+            'job' => [
+                'id' => $job->id,
+                'title' => $job->title,
+                'status' => $job->status,
+                'completed_at' => $job->completed_at,
+            ],
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiForceCancelJob(Job $job)
+    {
+        $job->update([
+            'status' => 'cancelled',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Job '{$job->title}' has been force cancelled!",
+            'job' => [
+                'id' => $job->id,
+                'title' => $job->title,
+                'status' => $job->status,
+            ],
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiAllChats(Request $request)
+    {
+        // Get all conversations
+        $conversations = DB::table('private_messages')
+            ->select(
+                'work_order_id',
+                DB::raw('MAX(created_at) as last_message_at'),
+                DB::raw('COUNT(*) as message_count')
+            )
+            ->groupBy('work_order_id')
+            ->orderBy('last_message_at', 'desc')
+            ->paginate(20);
+
+        // Load job details
+        $jobIds = $conversations->pluck('work_order_id');
+        $jobs = Job::with(['muhitaji', 'acceptedWorker'])
+            ->whereIn('id', $jobIds)
+            ->get()
+            ->keyBy('id');
+
+        // Merge data
+        $conversations->getCollection()->transform(function($conv) use ($jobs) {
+            $job = $jobs->get($conv->work_order_id);
+            $conv->job = $job ? [
+                'id' => $job->id,
+                'title' => $job->title,
+                'status' => $job->status,
+                'muhitaji' => [
+                    'id' => $job->muhitaji->id,
+                    'name' => $job->muhitaji->name,
+                ],
+                'accepted_worker' => $job->acceptedWorker ? [
+                    'id' => $job->acceptedWorker->id,
+                    'name' => $job->acceptedWorker->name,
+                ] : null,
+            ] : null;
+            return $conv;
+        });
+
+        return response()->json([
+            'conversations' => $conversations->items(),
+            'pagination' => [
+                'current_page' => $conversations->currentPage(),
+                'last_page' => $conversations->lastPage(),
+                'per_page' => $conversations->perPage(),
+                'total' => $conversations->total(),
+                'has_more' => $conversations->hasMorePages()
+            ],
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiViewChat(Job $job)
+    {
+        $messages = PrivateMessage::forJob($job->id)
+            ->with(['sender', 'receiver'])
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        $job->load(['muhitaji', 'acceptedWorker']);
+
+        return response()->json([
+            'job' => [
+                'id' => $job->id,
+                'title' => $job->title,
+                'status' => $job->status,
+                'muhitaji' => [
+                    'id' => $job->muhitaji->id,
+                    'name' => $job->muhitaji->name,
+                ],
+                'accepted_worker' => $job->acceptedWorker ? [
+                    'id' => $job->acceptedWorker->id,
+                    'name' => $job->acceptedWorker->name,
+                ] : null,
+            ],
+            'messages' => $messages->map(function($message) {
+                return [
+                    'id' => $message->id,
+                    'message' => $message->message,
+                    'is_read' => $message->is_read,
+                    'created_at' => $message->created_at,
+                    'sender' => [
+                        'id' => $message->sender->id,
+                        'name' => $message->sender->name,
+                        'role' => $message->sender->role,
+                    ],
+                    'receiver' => [
+                        'id' => $message->receiver->id,
+                        'name' => $message->receiver->name,
+                        'role' => $message->receiver->role,
+                    ],
+                ];
+            }),
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiAnalytics(Request $request)
+    {
+        $period = $request->get('period', '30'); // days
+
+        // User growth
+        $userGrowth = User::select(
+                DB::raw('DATE(created_at) as date'),
+                DB::raw('COUNT(*) as count')
+            )
+            ->where('created_at', '>=', now()->subDays($period))
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get();
+
+        // Job statistics
+        $jobStats = Job::select(
+                DB::raw('DATE(created_at) as date'),
+                DB::raw('COUNT(*) as count')
+            )
+            ->where('created_at', '>=', now()->subDays($period))
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get();
+
+        // Revenue
+        $revenue = Payment::select(
+                DB::raw('DATE(created_at) as date'),
+                DB::raw('SUM(amount) as total')
+            )
+            ->where('status', 'paid')
+            ->where('created_at', '>=', now()->subDays($period))
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get();
+
+        // Top workers
+        $topWorkers = User::where('role', 'mfanyakazi')
+            ->withCount(['assignedJobs as completed_jobs' => function($q) {
+                $q->where('status', 'completed');
+            }])
+            ->orderBy('completed_jobs', 'desc')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'user_growth' => $userGrowth,
+            'job_stats' => $jobStats,
+            'revenue' => $revenue,
+            'top_workers' => $topWorkers->map(function($worker) {
+                return [
+                    'id' => $worker->id,
+                    'name' => $worker->name,
+                    'completed_jobs' => $worker->completed_jobs,
+                ];
+            }),
+            'period' => $period,
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiSystemLogs()
+    {
+        // Get recent activities
+        $activities = collect();
+        
+        // Recent jobs
+        $recentJobs = Job::with(['muhitaji', 'acceptedWorker'])
+            ->latest()
+            ->limit(50)
+            ->get();
+            
+        foreach ($recentJobs as $job) {
+            $activities->push([
+                'type' => 'job_created',
+                'user' => [
+                    'id' => $job->muhitaji->id,
+                    'name' => $job->muhitaji->name,
+                ],
+                'description' => "Created job: {$job->title}",
+                'timestamp' => $job->created_at,
+                'data' => [
+                    'id' => $job->id,
+                    'title' => $job->title,
+                    'status' => $job->status,
+                ]
+            ]);
+        }
+
+        // Recent messages
+        $recentMessages = PrivateMessage::with(['sender', 'receiver', 'job'])
+            ->latest()
+            ->limit(50)
+            ->get();
+            
+        foreach ($recentMessages as $message) {
+            $activities->push([
+                'type' => 'message_sent',
+                'user' => [
+                    'id' => $message->sender->id,
+                    'name' => $message->sender->name,
+                ],
+                'description' => "Sent message to {$message->receiver->name}",
+                'timestamp' => $message->created_at,
+                'data' => [
+                    'id' => $message->id,
+                    'message' => substr($message->message, 0, 100),
+                ]
+            ]);
+        }
+
+        // Recent payments
+        $recentPayments = Payment::with(['job.muhitaji'])
+            ->latest()
+            ->limit(50)
+            ->get();
+            
+        foreach ($recentPayments as $payment) {
+            $activities->push([
+                'type' => 'payment_made',
+                'user' => $payment->job->muhitaji ? [
+                    'id' => $payment->job->muhitaji->id,
+                    'name' => $payment->job->muhitaji->name,
+                ] : null,
+                'description' => "Made payment: Tsh " . number_format($payment->amount) . " for job: " . ($payment->job->title ?? 'Unknown'),
+                'timestamp' => $payment->created_at,
+                'data' => [
+                    'id' => $payment->id,
+                    'amount' => $payment->amount,
+                    'status' => $payment->status,
+                ]
+            ]);
+        }
+
+        // Sort by timestamp
+        $activities = $activities->sortByDesc('timestamp')->values();
+
+        return response()->json([
+            'activities' => $activities,
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiSystemSettings()
+    {
+        return response()->json([
+            'settings' => [
+                'app_name' => config('app.name'),
+                'app_env' => config('app.env'),
+                'app_debug' => config('app.debug'),
+            ],
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiUpdateSystemSettings(Request $request)
+    {
+        // Here you can add system-wide settings
+        // For now, just return success
+        return response()->json([
+            'success' => true,
+            'message' => 'System settings updated!',
+            'status' => 'success'
+        ]);
+    }
 }
 

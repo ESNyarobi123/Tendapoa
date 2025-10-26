@@ -403,8 +403,8 @@
             <div class="map-info">
               <div class="map-info-icon">📍</div>
               <div class="map-info-text">
-                <h4>Eneo la Kazi</h4>
-                <p>Weka pini eneo la kazi au tumia GPS kwa usahihi zaidi</p>
+                <h4>Eneo la Kazi (Lazima)</h4>
+                <p>Weka pini eneo la kazi au tumia GPS. Hii ni lazima ili wafanyakazi waweze kuona umbali wa kazi.</p>
               </div>
             </div>
             <div class="map-actions">
@@ -420,6 +420,9 @@
                 value="{{ old('address_text') }}"
                 style="flex: 1; margin: 0;"
               >
+            </div>
+            <div id="location-status" style="margin-top: 12px; padding: 12px; border-radius: 8px; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; display: none;">
+              <strong>⚠️ Lazima uweke eneo la kazi!</strong> Wafanyakazi wataweza kuona umbali wa kazi kutoka kwenye eneo lako.
             </div>
           </div>
         </div>
@@ -510,10 +513,24 @@
   document.querySelector('form').addEventListener('submit', function(e) {
     if (!isLocationSet) {
       e.preventDefault();
-      alert('Tafadhali weka eneo la kazi kwenye ramani.');
+      document.getElementById('location-status').style.display = 'block';
+      document.getElementById('map').scrollIntoView({ behavior: 'smooth' });
       return false;
     }
   });
+
+  // Show/hide location status
+  function updateLocationStatus() {
+    const statusDiv = document.getElementById('location-status');
+    if (isLocationSet) {
+      statusDiv.style.display = 'none';
+    } else {
+      statusDiv.style.display = 'block';
+    }
+  }
+
+  // Update status on page load
+  updateLocationStatus();
 
   // Add some interactive animations
   document.addEventListener('DOMContentLoaded', function() {

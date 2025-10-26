@@ -54,4 +54,129 @@ class JobViewController extends Controller
 
         return back()->with('status', 'Umemchagua mfanyakazi.');
     }
+
+    // API Methods
+    public function apiShow(Job $job)
+    {
+        $job->load('muhitaji','category','comments.user');
+        
+        return response()->json([
+            'success' => true,
+            'job' => [
+                'id' => $job->id,
+                'title' => $job->title,
+                'description' => $job->description,
+                'price' => $job->price,
+                'status' => $job->status,
+                'lat' => $job->lat,
+                'lng' => $job->lng,
+                'address_text' => $job->address_text,
+                'created_at' => $job->created_at,
+                'published_at' => $job->published_at,
+                'muhitaji' => [
+                    'id' => $job->muhitaji->id,
+                    'name' => $job->muhitaji->name,
+                    'phone' => $job->muhitaji->phone,
+                ],
+                'category' => [
+                    'id' => $job->category->id,
+                    'name' => $job->category->name,
+                    'slug' => $job->category->slug,
+                ],
+                'comments' => $job->comments->map(function($comment) {
+                    return [
+                        'id' => $comment->id,
+                        'message' => $comment->message,
+                        'bid_amount' => $comment->bid_amount,
+                        'is_application' => $comment->is_application,
+                        'created_at' => $comment->created_at,
+                        'user' => [
+                            'id' => $comment->user->id,
+                            'name' => $comment->user->name,
+                            'role' => $comment->user->role,
+                        ]
+                    ];
+                }),
+                'accepted_worker' => $job->acceptedWorker ? [
+                    'id' => $job->acceptedWorker->id,
+                    'name' => $job->acceptedWorker->name,
+                    'phone' => $job->acceptedWorker->phone,
+                ] : null,
+            ],
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiComment(Job $job, Request $r)
+    {
+        $role = Auth::user()->role ?? null;
+        if (!in_array($role, ['mfanyakazi','admin'], true)) {
+            return response()->json([
+                'error' => 'Huna ruhusa (mfanyakazi/admin tu).',
+                'status' => 'forbidden'
+            ], 403);
+        }
+
+        $r->validate([
+            'message'    => ['required','max:1000'],
+            'bid_amount' => ['nullable','integer','min:0'],
+        ]);
+
+        $comment = JobComment::create([
+            'work_order_id' => $job->id,
+            'user_id'       => Auth::id(),
+            'message'       => $r->input('message'),
+            'is_application'=> $r->boolean('is_application'),
+            'bid_amount'    => $r->input('bid_amount'),
+        ]);
+
+        $comment->load('user');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Comment imetumwa kwa mafanikio!',
+            'comment' => [
+                'id' => $comment->id,
+                'message' => $comment->message,
+                'bid_amount' => $comment->bid_amount,
+                'is_application' => $comment->is_application,
+                'created_at' => $comment->created_at,
+                'user' => [
+                    'id' => $comment->user->id,
+                    'name' => $comment->user->name,
+                    'role' => $comment->user->role,
+                ]
+            ],
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiAccept(Job $job, JobComment $comment)
+    {
+        $role = Auth::user()->role ?? null;
+        if (!in_array($role, ['muhitaji','admin'], true)) {
+            return response()->json([
+                'error' => 'Huna ruhusa (muhitaji/admin tu).',
+                'status' => 'forbidden'
+            ], 403);
+        }
+
+        Gate::authorize('update', $job);
+
+        $job->update([
+            'accepted_worker_id' => $comment->user_id,
+            'status'             => 'assigned',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Umemchagua mfanyakazi.',
+            'job' => [
+                'id' => $job->id,
+                'status' => $job->status,
+                'accepted_worker_id' => $job->accepted_worker_id,
+            ],
+            'status' => 'success'
+        ]);
+    }
 }

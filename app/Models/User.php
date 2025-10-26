@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasApiTokens;
 
     protected $fillable = ['name','email','password','phone','role','lat','lng','is_active'];
     protected $hidden = ['password','remember_token'];
@@ -33,5 +34,19 @@ class User extends Authenticatable
     public function ensureWallet(): Wallet
     {
         return $this->wallet()->firstOrCreate([], ['balance'=>0]);
+    }
+
+    // Location helpers
+    public function hasLocation(): bool
+    {
+        return !is_null($this->lat) && !is_null($this->lng);
+    }
+
+    public function getLocationString(): ?string
+    {
+        if (!$this->hasLocation()) {
+            return null;
+        }
+        return "{$this->lat}, {$this->lng}";
     }
 }
