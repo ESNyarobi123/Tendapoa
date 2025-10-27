@@ -13,7 +13,8 @@ use App\Http\Controllers\{
     WorkerActionsController,
     ChatController,
     WithdrawalController,
-    AdminController
+    AdminController,
+    CategoryController
 };
 use App\Http\Controllers\Admin\WithdrawalAdminController;
 
@@ -40,6 +41,12 @@ Route::get('/ping', fn () => response()->json([
     'ok' => true,
     'ts' => now(),
 ]));
+
+/**
+ * Categories (public)
+ * - GET /api/categories -> fetch all categories
+ */
+Route::get('/categories', [CategoryController::class, 'apiIndex'])->name('api.categories.index');
 
 /**
  * Authentication (public + protected)
