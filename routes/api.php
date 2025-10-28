@@ -106,6 +106,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Accept worker
         Route::post('/{job}/accept/{comment}', [JobViewController::class, 'apiAccept'])->name('api.jobs.accept');
+
+        // Worker apply/offer
+        Route::post('/{job}/apply', [JobViewController::class, 'apiApply'])->name('api.jobs.apply');
+        Route::post('/{job}/offer', [JobViewController::class, 'apiOffer'])->name('api.jobs.offer');
     });
 
     // ---------------------------------------------------------------------

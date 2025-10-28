@@ -179,4 +179,106 @@ class JobViewController extends Controller
             'status' => 'success'
         ]);
     }
+
+    public function apiApply(Job $job, Request $r)
+    {
+        $role = Auth::user()->role ?? null;
+        if (!in_array($role, ['mfanyakazi','admin'], true)) {
+            return response()->json([
+                'error' => 'Huna ruhusa (mfanyakazi/admin tu).',
+                'status' => 'forbidden'
+            ], 403);
+        }
+
+        if ($job->status !== 'posted') {
+            return response()->json([
+                'error' => 'Kazi haipo wazi kwa maombi kwa sasa.',
+                'status' => 'invalid_state'
+            ], 422);
+        }
+
+        $r->validate([
+            'message'    => ['required','max:1000'],
+            'bid_amount' => ['nullable','integer','min:0'],
+        ]);
+
+        $comment = JobComment::create([
+            'work_order_id' => $job->id,
+            'user_id'       => Auth::id(),
+            'message'       => $r->input('message'),
+            'is_application'=> true,
+            'bid_amount'    => $r->input('bid_amount'),
+        ]);
+
+        $comment->load('user');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Ombi lako limewasilishwa.',
+            'comment' => [
+                'id' => $comment->id,
+                'message' => $comment->message,
+                'bid_amount' => $comment->bid_amount,
+                'is_application' => $comment->is_application,
+                'created_at' => $comment->created_at,
+                'user' => [
+                    'id' => $comment->user->id,
+                    'name' => $comment->user->name,
+                    'role' => $comment->user->role,
+                ]
+            ],
+            'status' => 'success'
+        ]);
+    }
+
+    public function apiOffer(Job $job, Request $r)
+    {
+        $role = Auth::user()->role ?? null;
+        if (!in_array($role, ['mfanyakazi','admin'], true)) {
+            return response()->json([
+                'error' => 'Huna ruhusa (mfanyakazi/admin tu).',
+                'status' => 'forbidden'
+            ], 403);
+        }
+
+        if (!in_array($job->status, ['posted','offered'], true)) {
+            return response()->json([
+                'error' => 'Hali ya kazi hairuhusu kutuma offer kwa sasa.',
+                'status' => 'invalid_state'
+            ], 422);
+        }
+
+        $r->validate([
+            'message'    => ['required','max:1000'],
+            'bid_amount' => ['required','integer','min:0'],
+        ]);
+
+        $comment = JobComment::create([
+            'work_order_id' => $job->id,
+            'user_id'       => Auth::id(),
+            'message'       => $r->input('message'),
+            'is_application'=> false,
+            'bid_amount'    => $r->input('bid_amount'),
+        ]);
+
+        $comment->load('user');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Offer yako imetumwa.',
+            'comment' => [
+                'id' => $comment->id,
+                'message' => $comment->message,
+                'bid_amount' => $comment->bid_amount,
+                'is_application' => $comment->is_application,
+                'created_at' => $comment->created_at,
+                'user' => [
+                    'id' => $comment->user->id,
+                    'name' => $comment->user->name,
+                    'role' => $comment->user->role,
+                ]
+            ],
+            'status' => 'success'
+        ]);
+    }
 }
