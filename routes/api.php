@@ -110,6 +110,10 @@ Route::middleware('auth:sanctum')->group(function () {
         // Worker apply/offer
         Route::post('/{job}/apply', [JobViewController::class, 'apiApply'])->name('api.jobs.apply');
         Route::post('/{job}/offer', [JobViewController::class, 'apiOffer'])->name('api.jobs.offer');
+
+        // Completion code management (Muhitaji)
+        Route::get('/{job}/completion-code', [JobViewController::class, 'apiGetCompletionCode'])->name('api.jobs.completion-code');
+        Route::post('/{job}/regenerate-code', [JobViewController::class, 'apiRegenerateCode'])->name('api.jobs.regenerate-code');
     });
 
     // ---------------------------------------------------------------------

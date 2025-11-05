@@ -59,6 +59,20 @@ class JobViewController extends Controller
     public function apiShow(Job $job)
     {
         $job->load('muhitaji','category','comments.user');
+        $user = Auth::user();
+        
+        // Determine if user should see completion code
+        $showCode = false;
+        if ($user) {
+            // Muhitaji can see code for their own jobs when in_progress or completed
+            $isMuhitaji = $job->user_id === $user->id;
+            // Worker can see code for their assigned jobs when in_progress or completed
+            $isWorker = $job->accepted_worker_id === $user->id;
+            
+            $showCode = ($isMuhitaji || $isWorker) && 
+                        in_array($job->status, ['in_progress', 'completed']) && 
+                        !empty($job->completion_code);
+        }
         
         return response()->json([
             'success' => true,
@@ -73,6 +87,8 @@ class JobViewController extends Controller
                 'address_text' => $job->address_text,
                 'created_at' => $job->created_at,
                 'published_at' => $job->published_at,
+                'completed_at' => $job->completed_at,
+                'completion_code' => $showCode ? $job->completion_code : null,
                 'muhitaji' => [
                     'id' => $job->muhitaji->id,
                     'name' => $job->muhitaji->name,
@@ -278,6 +294,125 @@ class JobViewController extends Controller
                     'role' => $comment->user->role,
                 ]
             ],
+            'status' => 'success'
+        ]);
+    }
+
+    /**
+     * API: Get completion code for a job (Muhitaji only)
+     * Muhitaji anatumia hii kupata code ili kumpa mfanyakazi
+     */
+    public function apiGetCompletionCode(Job $job)
+    {
+        $user = Auth::user();
+        
+        // Only muhitaji (job owner) or admin can get the code
+        if (!$user || ($job->user_id !== $user->id && $user->role !== 'admin')) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Huna ruhusa ya kuona code hii. Ni kazi yako tu.',
+                'status' => 'forbidden'
+            ], 403);
+        }
+
+        // Check if job has a worker assigned
+        if (!$job->accepted_worker_id) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Kazi hii haijapewa mfanyakazi bado.',
+                'status' => 'no_worker'
+            ], 400);
+        }
+
+        // Check if job is in the right status
+        if (!in_array($job->status, ['in_progress', 'completed'])) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Code haijapatikana bado. Mfanyakazi lazima akubali kazi kwanza.',
+                'status' => 'invalid_status',
+                'current_status' => $job->status
+            ], 400);
+        }
+
+        // Return the completion code
+        return response()->json([
+            'success' => true,
+            'completion_code' => $job->completion_code,
+            'job' => [
+                'id' => $job->id,
+                'title' => $job->title,
+                'status' => $job->status,
+                'worker' => [
+                    'id' => $job->acceptedWorker->id,
+                    'name' => $job->acceptedWorker->name,
+                    'phone' => $job->acceptedWorker->phone,
+                ]
+            ],
+            'instructions' => 'Mpe mfanyakazi code hii akimaliza kazi. Atatumia code hii kuthibitisha na kupata malipo.',
+            'status' => 'success'
+        ]);
+    }
+
+    /**
+     * API: Regenerate completion code (Muhitaji only)
+     * Ikiwa code imepotea au kuna tatizo, muhitaji anaweza generate mpya
+     */
+    public function apiRegenerateCode(Job $job)
+    {
+        $user = Auth::user();
+        
+        // Only muhitaji (job owner) or admin can regenerate
+        if (!$user || ($job->user_id !== $user->id && $user->role !== 'admin')) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Huna ruhusa ya kubadilisha code. Ni kazi yako tu.',
+                'status' => 'forbidden'
+            ], 403);
+        }
+
+        // Can only regenerate if job is in_progress (not completed)
+        if ($job->status === 'completed') {
+            return response()->json([
+                'success' => false,
+                'error' => 'Kazi imekamilika tayari. Hauwezi kubadilisha code.',
+                'status' => 'already_completed'
+            ], 400);
+        }
+
+        if ($job->status !== 'in_progress') {
+            return response()->json([
+                'success' => false,
+                'error' => 'Unaweza kubadilisha code wakati kazi iko "in_progress" tu.',
+                'status' => 'invalid_status',
+                'current_status' => $job->status
+            ], 400);
+        }
+
+        // Generate new code
+        $oldCode = $job->completion_code;
+        $newCode = (string) random_int(100000, 999999);
+        
+        // Make sure new code is different
+        while ($newCode === $oldCode) {
+            $newCode = (string) random_int(100000, 999999);
+        }
+
+        $job->completion_code = $newCode;
+        $job->save();
+
+        \Log::info("Completion code regenerated for job {$job->id} by user {$user->id}. Old: {$oldCode}, New: {$newCode}");
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Code mpya imetengenezwa kwa mafanikio!',
+            'completion_code' => $newCode,
+            'old_code' => $oldCode,
+            'job' => [
+                'id' => $job->id,
+                'title' => $job->title,
+                'status' => $job->status,
+            ],
+            'warning' => 'Hakikisha unamjulisha mfanyakazi kuhusu code mpya!',
             'status' => 'success'
         ]);
     }
