@@ -1,0 +1,564 @@
+{
+  "info": {
+    "name": "Chat with Applicants API",
+    "description": "API collection for testing chat with job applicants feature",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "muhitaji_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "worker_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "job_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "worker_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "comment_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Login as Muhitaji",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('muhitaji_token', jsonData.token);",
+                  "    console.log('Muhitaji token saved:', jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"muhitaji@example.com\",\n  \"password\": \"password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login as Worker",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('worker_token', jsonData.token);",
+                  "    console.log('Worker token saved:', jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"worker@example.com\",\n  \"password\": \"password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Job Management",
+      "item": [
+        {
+          "name": "Create Job (as Muhitaji)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.job) {",
+                  "        pm.collectionVariables.set('job_id', jsonData.job.id);",
+                  "        console.log('Job ID saved:', jsonData.job.id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{muhitaji_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Mfereji wa Bomba\",\n  \"description\": \"Nataka mtu wa kurekebisha bomba lililovunjika nyumbani kwangu\",\n  \"category_id\": 1,\n  \"price\": 50000,\n  \"latitude\": -6.7924,\n  \"longitude\": 39.2083\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/jobs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs"]
+            }
+          }
+        },
+        {
+          "name": "View Job",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{muhitaji_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/jobs/{{job_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "{{job_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Worker Applications",
+      "item": [
+        {
+          "name": "Apply for Job (as Worker)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.comment) {",
+                  "        pm.collectionVariables.set('comment_id', jsonData.comment.id);",
+                  "        pm.collectionVariables.set('worker_id', jsonData.comment.user_id);",
+                  "        console.log('Comment ID saved:', jsonData.comment.id);",
+                  "        console.log('Worker ID saved:', jsonData.comment.user_id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{worker_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"Naweza kufanya kazi hii. Nina uzoefu wa miaka 5 katika ukarabati wa mabomba.\",\n  \"amount\": 45000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/jobs/{{job_id}}/comment",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "{{job_id}}", "comment"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Chat with Applicants (NEW)",
+      "item": [
+        {
+          "name": "Get Job Applicants",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{muhitaji_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chat/{{job_id}}/applicants",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chat", "{{job_id}}", "applicants"]
+            },
+            "description": "NEW ENDPOINT: Get all workers who applied to this job"
+          }
+        },
+        {
+          "name": "Open Chat with Specific Worker",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{muhitaji_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chat/{{job_id}}?worker_id={{worker_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chat", "{{job_id}}"],
+              "query": [
+                {
+                  "key": "worker_id",
+                  "value": "{{worker_id}}",
+                  "description": "Specific worker to chat with"
+                }
+              ]
+            },
+            "description": "Open chat with a specific applicant (even if not accepted)"
+          }
+        },
+        {
+          "name": "Send Message to Worker",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{muhitaji_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Je, unaweza kuanza kesho asubuhi saa 10?\",\n  \"receiver_id\": {{worker_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/chat/{{job_id}}/send",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chat", "{{job_id}}", "send"]
+            },
+            "description": "Send message to specific applicant"
+          }
+        },
+        {
+          "name": "Worker Replies",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{worker_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Ndio, naweza kuanza saa 10. Nina vifaa vyote vinavyohitajika.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/chat/{{job_id}}/send",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chat", "{{job_id}}", "send"]
+            },
+            "description": "Worker sends reply to Muhitaji"
+          }
+        },
+        {
+          "name": "Poll for New Messages",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{muhitaji_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chat/{{job_id}}/poll?other_user_id={{worker_id}}&last_id=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chat", "{{job_id}}", "poll"],
+              "query": [
+                {
+                  "key": "other_user_id",
+                  "value": "{{worker_id}}"
+                },
+                {
+                  "key": "last_id",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Check for new messages from specific worker"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Worker Acceptance",
+      "item": [
+        {
+          "name": "Accept Worker",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{muhitaji_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/jobs/{{job_id}}/accept/{{comment_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "{{job_id}}", "accept", "{{comment_id}}"]
+            },
+            "description": "Accept worker after chatting"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Unread Counts",
+      "item": [
+        {
+          "name": "Get Total Unread Count",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{muhitaji_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chat/unread-count",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chat", "unread-count"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Error Cases",
+      "item": [
+        {
+          "name": "Try to View Applicants as Worker (Should Fail)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{worker_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chat/{{job_id}}/applicants",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chat", "{{job_id}}", "applicants"]
+            },
+            "description": "Should return 403 Forbidden (only job owner can see applicants)"
+          }
+        },
+        {
+          "name": "Try to View Applicants without Auth (Should Fail)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/chat/{{job_id}}/applicants",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chat", "{{job_id}}", "applicants"]
+            },
+            "description": "Should return 401 Unauthorized"
+          }
+        }
+      ]
+    }
+  ]
+}
+

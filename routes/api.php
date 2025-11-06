@@ -139,10 +139,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // ---------------------------------------------------------------------
     Route::prefix('chat')->group(function () {
         Route::get('/', [ChatController::class, 'apiIndex'])->name('api.chat.index');
+        Route::get('/unread-count', [ChatController::class, 'apiUnreadCount'])->name('api.chat.unread');
         Route::get('/{job}', [ChatController::class, 'apiShow'])->name('api.chat.show');
         Route::post('/{job}/send', [ChatController::class, 'apiSend'])->name('api.chat.send');
         Route::get('/{job}/poll', [ChatController::class, 'apiPoll'])->name('api.chat.poll');
-        Route::get('/unread-count', [ChatController::class, 'apiUnreadCount'])->name('api.chat.unread');
+        Route::get('/{job}/applicants', [ChatController::class, 'apiJobApplicants'])->name('api.chat.applicants');
     });
 
     // ---------------------------------------------------------------------

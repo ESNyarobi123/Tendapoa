@@ -529,5 +529,85 @@ class ChatController extends Controller
             'status' => 'success'
         ]);
     }
+
+    /**
+     * Get list of all workers who have applied/offered on a job
+     * This allows muhitaji to see who they can chat with
+     * 
+     * @param Job $job
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function apiJobApplicants(Job $job)
+    {
+        $user = Auth::user();
+
+        // Only job owner can see applicants
+        if ($job->user_id !== $user->id) {
+            return response()->json([
+                'error' => 'Huna ruhusa ya kuona waombaji wa kazi hii.',
+                'status' => 'forbidden'
+            ], 403);
+        }
+
+        // Get all workers who commented on this job
+        $applicants = $job->comments()
+            ->with(['user' => function($query) {
+                $query->select('id', 'name', 'email', 'role', 'avatar');
+            }])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function($comment) use ($job) {
+                $worker = $comment->user;
+                
+                // Check if this worker is accepted
+                $isAccepted = $job->accepted_worker_id === $worker->id;
+                
+                // Get unread message count from this worker
+                $unreadCount = PrivateMessage::forJob($job->id)
+                    ->where('sender_id', $worker->id)
+                    ->where('receiver_id', Auth::id())
+                    ->where('is_read', false)
+                    ->count();
+                
+                // Get last message timestamp
+                $lastMessage = PrivateMessage::forJob($job->id)
+                    ->betweenUsers(Auth::id(), $worker->id)
+                    ->latest()
+                    ->first();
+
+                return [
+                    'worker' => [
+                        'id' => $worker->id,
+                        'name' => $worker->name,
+                        'email' => $worker->email,
+                        'role' => $worker->role,
+                        'avatar' => $worker->avatar,
+                    ],
+                    'comment' => [
+                        'id' => $comment->id,
+                        'body' => $comment->body,
+                        'amount' => $comment->amount,
+                        'created_at' => $comment->created_at,
+                    ],
+                    'is_accepted' => $isAccepted,
+                    'can_chat' => true, // All applicants can be chatted with
+                    'unread_count' => $unreadCount,
+                    'last_message_at' => $lastMessage ? $lastMessage->created_at : null,
+                ];
+            })
+            ->unique('worker.id') // Remove duplicate workers if they commented multiple times
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'job' => [
+                'id' => $job->id,
+                'title' => $job->title,
+                'status' => $job->status,
+            ],
+            'applicants' => $applicants,
+            'total' => $applicants->count(),
+        ]);
+    }
 }
 
