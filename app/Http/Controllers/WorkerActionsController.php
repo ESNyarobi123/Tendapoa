@@ -5,9 +5,17 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use App\Models\Job;
+use App\Services\NotificationService;
 
 class WorkerActionsController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     protected function responseColumn(): ?string
     {
         if (Schema::hasColumn('work_orders', 'mfanyakazi_response')) return 'mfanyakazi_response';
@@ -45,6 +53,12 @@ class WorkerActionsController extends Controller
         }
         $job->save();
 
+        // Send notifications
+        $this->notificationService->notifyWorkerAccepted($job, $u);
+        if ($job->muhitaji) {
+            $this->notificationService->notifyMuhitajiWorkerAccepted($job, $job->muhitaji, $u);
+        }
+
         return redirect()->route('mfanyakazi.assigned')->with('status','Umeikubali kazi.');
     }
 
@@ -57,9 +71,19 @@ class WorkerActionsController extends Controller
         if ($col = $this->responseColumn()) {
             $job->{$col} = 'no'; // Use shorter value
         }
+        
+        // Track this worker as declined
+        $job->addDeclinedWorker($u->id);
+        
         $job->status = 'offered';
         $job->accepted_worker_id = null;
         $job->save();
+
+        // Send notifications
+        $this->notificationService->notifyWorkerDeclined($job, $u);
+        if ($job->muhitaji) {
+            $this->notificationService->notifyMuhitajiWorkerDeclined($job, $job->muhitaji, $u);
+        }
 
         return redirect()->route('mfanyakazi.assigned')->with('status','Umeikataa kazi.');
     }
@@ -103,6 +127,13 @@ class WorkerActionsController extends Controller
 
         // Process payment to worker
         $this->processPaymentToWorker($job);
+
+        // Send notifications
+        $amount = $job->amount;
+        $this->notificationService->notifyWorkerJobCompleted($job, $u, $amount);
+        if ($job->muhitaji) {
+            $this->notificationService->notifyMuhitajiJobCompleted($job, $job->muhitaji, $u);
+        }
 
         if (request()->expectsJson()) {
             return response()->json(['success' => true, 'message' => 'Kazi imethibitishwa! Utapokea malipo yako.']);
@@ -197,6 +228,12 @@ class WorkerActionsController extends Controller
         }
         $job->save();
 
+        // Send notifications
+        $this->notificationService->notifyWorkerAccepted($job, $u);
+        if ($job->muhitaji) {
+            $this->notificationService->notifyMuhitajiWorkerAccepted($job, $job->muhitaji, $u);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Umeikubali kazi.',
@@ -229,9 +266,19 @@ class WorkerActionsController extends Controller
         if ($col = $this->responseColumn()) {
             $job->{$col} = 'no';
         }
+        
+        // Track this worker as declined
+        $job->addDeclinedWorker($u->id);
+        
         $job->status = 'offered';
         $job->accepted_worker_id = null;
         $job->save();
+
+        // Send notifications
+        $this->notificationService->notifyWorkerDeclined($job, $u);
+        if ($job->muhitaji) {
+            $this->notificationService->notifyMuhitajiWorkerDeclined($job, $job->muhitaji, $u);
+        }
 
         return response()->json([
             'success' => true,
@@ -299,6 +346,13 @@ class WorkerActionsController extends Controller
 
         // Process payment to worker
         $this->processPaymentToWorker($job);
+
+        // Send notifications
+        $amount = $job->amount;
+        $this->notificationService->notifyWorkerJobCompleted($job, $u, $amount);
+        if ($job->muhitaji) {
+            $this->notificationService->notifyMuhitajiJobCompleted($job, $job->muhitaji, $u);
+        }
 
         return response()->json([
             'success' => true,

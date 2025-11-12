@@ -147,6 +147,21 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ---------------------------------------------------------------------
+    // Notifications
+    // ---------------------------------------------------------------------
+    Route::prefix('notifications')->group(function () {
+        Route::get('/', [\App\Http\Controllers\NotificationController::class, 'apiIndex'])->name('api.notifications.index');
+        Route::get('/unread-count', [\App\Http\Controllers\NotificationController::class, 'apiUnreadCount'])->name('api.notifications.unread-count');
+        Route::get('/unread', [\App\Http\Controllers\NotificationController::class, 'apiUnread'])->name('api.notifications.unread');
+        Route::get('/summary', [\App\Http\Controllers\NotificationController::class, 'apiSummary'])->name('api.notifications.summary');
+        Route::get('/type/{type}', [\App\Http\Controllers\NotificationController::class, 'apiByType'])->name('api.notifications.by-type');
+        Route::post('/{notification}/read', [\App\Http\Controllers\NotificationController::class, 'apiMarkAsRead'])->name('api.notifications.read');
+        Route::post('/mark-all-read', [\App\Http\Controllers\NotificationController::class, 'apiMarkAllAsRead'])->name('api.notifications.mark-all-read');
+        Route::delete('/{notification}', [\App\Http\Controllers\NotificationController::class, 'apiDelete'])->name('api.notifications.delete');
+        Route::delete('/clear-read', [\App\Http\Controllers\NotificationController::class, 'apiClearRead'])->name('api.notifications.clear-read');
+    });
+
+    // ---------------------------------------------------------------------
     // Withdrawals
     // ---------------------------------------------------------------------
     Route::prefix('withdraw')->group(function () {

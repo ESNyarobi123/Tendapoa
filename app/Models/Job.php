@@ -25,6 +25,7 @@ class Job extends Model
         'address_text',
         'status',
         'accepted_worker_id',
+        'declined_workers_ids',
         'published_at',
         'completion_code',
         'completed_at',
@@ -49,6 +50,7 @@ class Job extends Model
         'posting_fee'  => 'decimal:2',
         'lat'          => 'float',
         'lng'          => 'float',
+        'declined_workers_ids' => 'array',
     ];
 
     /** STATUS constants (hiari kutumia) */
@@ -150,5 +152,57 @@ class Job extends Model
         if (Schema::hasColumn($table, 'worker_response'))     return 'worker_response';
         if (Schema::hasColumn($table, 'assignee_response'))   return 'assignee_response';
         return null;
+    }
+
+    /* ===========================
+     |  Declined Workers Helpers
+     * =========================== */
+    
+    /**
+     * Add a worker to the declined workers list
+     */
+    public function addDeclinedWorker(int $workerId): void
+    {
+        $declined = $this->declined_workers_ids ?? [];
+        
+        if (!in_array($workerId, $declined)) {
+            $declined[] = $workerId;
+            $this->declined_workers_ids = $declined;
+            $this->save();
+        }
+    }
+
+    /**
+     * Check if a worker has declined this job
+     */
+    public function hasDeclined(int $workerId): bool
+    {
+        $declined = $this->declined_workers_ids ?? [];
+        return in_array($workerId, $declined);
+    }
+
+    /**
+     * Get all declined workers
+     */
+    public function getDeclinedWorkers()
+    {
+        $declined = $this->declined_workers_ids ?? [];
+        
+        if (empty($declined)) {
+            return collect();
+        }
+
+        return User::whereIn('id', $declined)->get();
+    }
+
+    /**
+     * Scope to exclude jobs declined by a specific worker
+     */
+    public function scopeNotDeclinedBy($query, int $workerId)
+    {
+        return $query->where(function($q) use ($workerId) {
+            $q->whereNull('declined_workers_ids')
+              ->orWhereRaw("NOT JSON_CONTAINS(declined_workers_ids, '\"$workerId\"')");
+        });
     }
 }

@@ -6,9 +6,17 @@ use App\Models\{Job, JobComment};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use App\Services\NotificationService;
 
 class JobViewController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     public function show(Job $job)
     {
         $job->load('muhitaji','category','comments.user');
@@ -27,13 +35,23 @@ class JobViewController extends Controller
             'bid_amount' => ['nullable','integer','min:0'],
         ]);
 
-        JobComment::create([
+        $comment = JobComment::create([
             'work_order_id' => $job->id,
             'user_id'       => Auth::id(),
             'message'       => $r->input('message'),
             'is_application'=> $r->boolean('is_application'),
             'bid_amount'    => $r->input('bid_amount'),
         ]);
+
+        // Notify muhitaji about new comment
+        if ($job->muhitaji && Auth::id() !== $job->user_id) {
+            $this->notificationService->notifyMuhitajiNewComment(
+                $job, 
+                $job->muhitaji, 
+                Auth::user(), 
+                $r->input('message')
+            );
+        }
 
         return back();
     }
@@ -51,6 +69,11 @@ class JobViewController extends Controller
             'accepted_worker_id' => $comment->user_id,
             'status'             => 'assigned',
         ]);
+
+        // Notify worker that they've been assigned
+        if ($comment->user) {
+            $this->notificationService->notifyWorkerAssigned($job, $comment->user);
+        }
 
         return back()->with('status', 'Umemchagua mfanyakazi.');
     }
@@ -118,6 +141,12 @@ class JobViewController extends Controller
                     'name' => $job->acceptedWorker->name,
                     'phone' => $job->acceptedWorker->phone,
                 ] : null,
+                'declined_workers' => $job->getDeclinedWorkers()->map(function($worker) {
+                    return [
+                        'id' => $worker->id,
+                        'name' => $worker->name,
+                    ];
+                }),
             ],
             'status' => 'success'
         ]);
@@ -147,6 +176,16 @@ class JobViewController extends Controller
         ]);
 
         $comment->load('user');
+
+        // Notify muhitaji about new comment
+        if ($job->muhitaji && Auth::id() !== $job->user_id) {
+            $this->notificationService->notifyMuhitajiNewComment(
+                $job, 
+                $job->muhitaji, 
+                Auth::user(), 
+                $r->input('message')
+            );
+        }
 
         return response()->json([
             'success' => true,
@@ -184,6 +223,11 @@ class JobViewController extends Controller
             'status'             => 'assigned',
         ]);
 
+        // Notify worker that they've been assigned
+        if ($comment->user) {
+            $this->notificationService->notifyWorkerAssigned($job, $comment->user);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Umemchagua mfanyakazi.',
@@ -206,7 +250,7 @@ class JobViewController extends Controller
             ], 403);
         }
 
-        if ($job->status !== 'posted') {
+        if (!in_array($job->status, ['posted', 'offered'])) {
             return response()->json([
                 'error' => 'Kazi haipo wazi kwa maombi kwa sasa.',
                 'status' => 'invalid_state'

@@ -1,0 +1,387 @@
+{
+	"info": {
+		"_postman_id": "notifications-api-2025",
+		"name": "TendaPoa Notifications API",
+		"description": "Complete Notifications API endpoints with examples for both Mfanyakazi and Muhitaji users",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{auth_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"item": [
+		{
+			"name": "1. Get All Notifications",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/notifications?per_page=20&unread_only=false",
+					"host": ["{{base_url}}"],
+					"path": ["api", "notifications"],
+					"query": [
+						{
+							"key": "per_page",
+							"value": "20",
+							"description": "Number of notifications per page (optional, default: 20)"
+						},
+						{
+							"key": "type",
+							"value": "job_posted",
+							"description": "Filter by type (optional): job_posted, job_accepted, job_declined, job_completed, new_comment, worker_assigned, job_available",
+							"disabled": true
+						},
+						{
+							"key": "unread_only",
+							"value": "false",
+							"description": "Show unread only (optional, default: false)"
+						}
+					]
+				},
+				"description": "Get all notifications for the authenticated user with pagination and optional filters"
+			},
+			"response": [
+				{
+					"name": "Success - All Notifications",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/notifications",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notifications"]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"notifications\": [\n        {\n            \"id\": 1,\n            \"user_id\": 5,\n            \"type\": \"job_available\",\n            \"title\": \"Kazi Mpya Imepostwa! 🎉\",\n            \"message\": \"Kazi mpya: Uchakataji wa mazao. Bei: TZS 50,000\",\n            \"data\": {\n                \"job_id\": 10,\n                \"job_title\": \"Uchakataji wa mazao\",\n                \"job_price\": 50000,\n                \"category\": \"Agriculture\"\n            },\n            \"is_read\": false,\n            \"read_at\": null,\n            \"created_at\": \"2025-11-12T10:30:00.000000Z\",\n            \"updated_at\": \"2025-11-12T10:30:00.000000Z\"\n        },\n        {\n            \"id\": 2,\n            \"user_id\": 5,\n            \"type\": \"worker_assigned\",\n            \"title\": \"Umechaguliwa Kufanya Kazi! 🎯\",\n            \"message\": \"Umechaguliwa kufanya kazi: Ujenzi wa nyumba. Angalia na ukubali au ukatae.\",\n            \"data\": {\n                \"job_id\": 8,\n                \"job_title\": \"Ujenzi wa nyumba\",\n                \"muhitaji_name\": \"John Doe\"\n            },\n            \"is_read\": true,\n            \"read_at\": \"2025-11-12T11:00:00.000000Z\",\n            \"created_at\": \"2025-11-12T09:15:00.000000Z\",\n            \"updated_at\": \"2025-11-12T11:00:00.000000Z\"\n        }\n    ],\n    \"pagination\": {\n        \"current_page\": 1,\n        \"last_page\": 3,\n        \"per_page\": 20,\n        \"total\": 45,\n        \"has_more\": true\n    },\n    \"unread_count\": 12,\n    \"status\": \"success\"\n}"
+				}
+			]
+		},
+		{
+			"name": "2. Get Unread Count",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/notifications/unread-count",
+					"host": ["{{base_url}}"],
+					"path": ["api", "notifications", "unread-count"]
+				},
+				"description": "Get the count of unread notifications for the authenticated user"
+			},
+			"response": [
+				{
+					"name": "Success - Unread Count",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/notifications/unread-count",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notifications", "unread-count"]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"unread_count\": 12,\n    \"status\": \"success\"\n}"
+				}
+			]
+		},
+		{
+			"name": "3. Get Unread Notifications",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/notifications/unread?per_page=20",
+					"host": ["{{base_url}}"],
+					"path": ["api", "notifications", "unread"],
+					"query": [
+						{
+							"key": "per_page",
+							"value": "20",
+							"description": "Number of notifications per page (optional)"
+						}
+					]
+				},
+				"description": "Get only unread notifications"
+			},
+			"response": [
+				{
+					"name": "Success - Unread Only",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/notifications/unread",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notifications", "unread"]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"notifications\": [\n        {\n            \"id\": 15,\n            \"user_id\": 5,\n            \"type\": \"job_completed\",\n            \"title\": \"Kazi Imekamilika! 🎊\",\n            \"message\": \"Hongera! Kazi 'Ukulima wa mahindi' imekamilika. Umepokea TZS 75,000\",\n            \"data\": {\n                \"job_id\": 25,\n                \"job_title\": \"Ukulima wa mahindi\",\n                \"amount\": 75000\n            },\n            \"is_read\": false,\n            \"read_at\": null,\n            \"created_at\": \"2025-11-12T14:20:00.000000Z\",\n            \"updated_at\": \"2025-11-12T14:20:00.000000Z\"\n        }\n    ],\n    \"pagination\": {\n        \"current_page\": 1,\n        \"last_page\": 1,\n        \"per_page\": 20,\n        \"total\": 12,\n        \"has_more\": false\n    },\n    \"status\": \"success\"\n}"
+				}
+			]
+		},
+		{
+			"name": "4. Get Notifications Summary",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/notifications/summary",
+					"host": ["{{base_url}}"],
+					"path": ["api", "notifications", "summary"]
+				},
+				"description": "Get a summary of notifications grouped by type with counts"
+			},
+			"response": [
+				{
+					"name": "Success - Summary",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/notifications/summary",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notifications", "summary"]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"summary\": [\n        {\n            \"type\": \"job_available\",\n            \"count\": 25,\n            \"unread_count\": 8\n        },\n        {\n            \"type\": \"worker_assigned\",\n            \"count\": 10,\n            \"unread_count\": 2\n        },\n        {\n            \"type\": \"job_completed\",\n            \"count\": 5,\n            \"unread_count\": 1\n        },\n        {\n            \"type\": \"job_declined\",\n            \"count\": 3,\n            \"unread_count\": 0\n        },\n        {\n            \"type\": \"new_comment\",\n            \"count\": 12,\n            \"unread_count\": 1\n        }\n    ],\n    \"total_unread\": 12,\n    \"status\": \"success\"\n}"
+				}
+			]
+		},
+		{
+			"name": "5. Get Notifications by Type",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/notifications/type/job_available?per_page=10",
+					"host": ["{{base_url}}"],
+					"path": ["api", "notifications", "type", "job_available"],
+					"query": [
+						{
+							"key": "per_page",
+							"value": "10",
+							"description": "Number of notifications per page"
+						}
+					]
+				},
+				"description": "Get notifications filtered by specific type\n\nAvailable types:\n- job_posted\n- job_accepted\n- job_declined\n- job_completed\n- new_comment\n- worker_assigned\n- job_available"
+			},
+			"response": [
+				{
+					"name": "Success - By Type",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/notifications/type/job_available",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notifications", "type", "job_available"]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"type\": \"job_available\",\n    \"notifications\": [\n        {\n            \"id\": 30,\n            \"user_id\": 5,\n            \"type\": \"job_available\",\n            \"title\": \"Kazi Mpya Imepostwa! 🎉\",\n            \"message\": \"Kazi mpya: Usafirishaji wa mizigo. Bei: TZS 100,000\",\n            \"data\": {\n                \"job_id\": 35,\n                \"job_title\": \"Usafirishaji wa mizigo\",\n                \"job_price\": 100000,\n                \"category\": \"Transport\"\n            },\n            \"is_read\": false,\n            \"read_at\": null,\n            \"created_at\": \"2025-11-12T15:00:00.000000Z\",\n            \"updated_at\": \"2025-11-12T15:00:00.000000Z\"\n        }\n    ],\n    \"pagination\": {\n        \"current_page\": 1,\n        \"last_page\": 3,\n        \"per_page\": 10,\n        \"total\": 25,\n        \"has_more\": true\n    },\n    \"status\": \"success\"\n}"
+				}
+			]
+		},
+		{
+			"name": "6. Mark Notification as Read",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/notifications/{{notification_id}}/read",
+					"host": ["{{base_url}}"],
+					"path": ["api", "notifications", "{{notification_id}}", "read"]
+				},
+				"description": "Mark a specific notification as read"
+			},
+			"response": [
+				{
+					"name": "Success - Marked as Read",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/notifications/15/read",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notifications", "15", "read"]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"message\": \"Notification imesomwa.\",\n    \"notification\": {\n        \"id\": 15,\n        \"user_id\": 5,\n        \"type\": \"job_completed\",\n        \"title\": \"Kazi Imekamilika! 🎊\",\n        \"message\": \"Hongera! Kazi 'Ukulima wa mahindi' imekamilika. Umepokea TZS 75,000\",\n        \"data\": {\n            \"job_id\": 25,\n            \"job_title\": \"Ukulima wa mahindi\",\n            \"amount\": 75000\n        },\n        \"is_read\": true,\n        \"read_at\": \"2025-11-12T15:30:00.000000Z\",\n        \"created_at\": \"2025-11-12T14:20:00.000000Z\",\n        \"updated_at\": \"2025-11-12T15:30:00.000000Z\"\n    },\n    \"unread_count\": 11,\n    \"status\": \"success\"\n}"
+				}
+			]
+		},
+		{
+			"name": "7. Mark All as Read",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/notifications/mark-all-read",
+					"host": ["{{base_url}}"],
+					"path": ["api", "notifications", "mark-all-read"]
+				},
+				"description": "Mark all notifications as read for the authenticated user"
+			},
+			"response": [
+				{
+					"name": "Success - All Marked",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/notifications/mark-all-read",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notifications", "mark-all-read"]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"message\": \"Notifications 11 zimesomwa.\",\n    \"marked_count\": 11,\n    \"unread_count\": 0,\n    \"status\": \"success\"\n}"
+				}
+			]
+		},
+		{
+			"name": "8. Delete Notification",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/notifications/{{notification_id}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "notifications", "{{notification_id}}"]
+				},
+				"description": "Delete a specific notification"
+			},
+			"response": [
+				{
+					"name": "Success - Deleted",
+					"originalRequest": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/notifications/20",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notifications", "20"]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"message\": \"Notification imefutwa.\",\n    \"unread_count\": 10,\n    \"status\": \"success\"\n}"
+				}
+			]
+		},
+		{
+			"name": "9. Clear All Read Notifications",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/notifications/clear-read",
+					"host": ["{{base_url}}"],
+					"path": ["api", "notifications", "clear-read"]
+				},
+				"description": "Delete all read notifications for the authenticated user"
+			},
+			"response": [
+				{
+					"name": "Success - Cleared",
+					"originalRequest": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/notifications/clear-read",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notifications", "clear-read"]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"message\": \"Notifications 33 zimefutwa.\",\n    \"deleted_count\": 33,\n    \"status\": \"success\"\n}"
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "auth_token",
+			"value": "your_sanctum_token_here",
+			"type": "string"
+		},
+		{
+			"key": "notification_id",
+			"value": "1",
+			"type": "string"
+		}
+	]
+}
+

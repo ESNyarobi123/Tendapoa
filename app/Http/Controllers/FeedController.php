@@ -21,7 +21,8 @@ class FeedController extends Controller
         $user = Auth::user();
 
         $jobs = Job::with('category','muhitaji')
-            ->where('status','posted')
+            ->whereIn('status', ['posted', 'offered'])  // Show both posted and offered (declined) jobs
+            ->notDeclinedBy($user->id)  // Exclude jobs declined by this worker
             ->when($cat, fn($q)=>$q->whereHas('category', fn($qq)=>$qq->where('slug',$cat)))
             ->latest()->paginate(12);
 
@@ -98,7 +99,8 @@ class FeedController extends Controller
         $user = Auth::user();
 
         $jobs = Job::with('category','muhitaji')
-            ->where('status','posted')
+            ->whereIn('status', ['posted', 'offered'])  // Show both posted and offered (declined) jobs
+            ->notDeclinedBy($user->id)  // Exclude jobs declined by this worker
             ->when($cat, fn($q)=>$q->whereHas('category', fn($qq)=>$qq->where('slug',$cat)))
             ->latest()->paginate(12);
 
@@ -190,7 +192,8 @@ class FeedController extends Controller
 
         $user = Auth::user();
         $jobs = Job::with('category','muhitaji')
-            ->where('status','posted')
+            ->whereIn('status', ['posted', 'offered'])  // Show both posted and offered (declined) jobs
+            ->notDeclinedBy($user->id)  // Exclude jobs declined by this worker
             ->whereNotNull('lat')
             ->whereNotNull('lng')
             ->where('lat', '!=', 0)

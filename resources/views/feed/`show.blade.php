@@ -12,7 +12,7 @@
   <p><b>Bei:</b> {{ number_format($job->price) }} TZS</p>
   <p>{{ $job->description }}</p>
   @auth
-    @if(auth()->user()->role==='muhitaji' && auth()->id()===$job->user_id && $job->status==='posted')
+    @if(auth()->user()->role==='muhitaji' && auth()->id()===$job->user_id && in_array($job->status, ['posted', 'offered']))
       <small>Chagua mfanyakazi kupitia maoni (comments) hapa chini.</small>
     @endif
   @endauth
@@ -35,7 +35,7 @@
       @if($c->bid_amount)<small>Pendekezo: {{ number_format($c->bid_amount) }} TZS</small>@endif
 
       @auth
-        @if(auth()->user()->id===$job->user_id && $job->status==='posted' && $c->user->role==='mfanyakazi')
+        @if(auth()->user()->id===$job->user_id && in_array($job->status, ['posted', 'offered']) && $c->user->role==='mfanyakazi')
           <form method="post" action="{{ route('jobs.accept',[$job,$c]) }}">
             @csrf
             <button class="btn" style="background:var(--green);color:#fff">Mchague huyu</button>

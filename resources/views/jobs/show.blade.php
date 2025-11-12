@@ -556,13 +556,36 @@
             </a>
           </div>
         @endif
-        @if(auth()->user()->role === 'muhitaji' && auth()->id() === $job->user_id && $job->status === 'posted')
+        @if(auth()->user()->role === 'muhitaji' && auth()->id() === $job->user_id && in_array($job->status, ['posted', 'offered']))
           <div style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 12px; padding: 16px; margin-top: 16px;">
             <h4 style="color: #92400e; margin: 0 0 8px 0;">💡 Kidokezo</h4>
             <p style="color: #92400e; margin: 0; font-size: 0.875rem;">
               Chagua mfanyakazi kupitia maoni (comments) hapa chini. Angalia profile na uwezo wa mfanyakazi kabla ya kumchagua.
             </p>
           </div>
+        @endif
+
+        {{-- Show declined workers history to Muhitaji --}}
+        @if($isMuhitaji && $job->declined_workers_ids && count($job->declined_workers_ids) > 0)
+          @php
+            $declinedWorkers = $job->getDeclinedWorkers();
+          @endphp
+          @if($declinedWorkers->isNotEmpty())
+            <div style="background: #fee2e2; border: 2px solid #dc2626; border-radius: 12px; padding: 16px; margin-top: 16px;">
+              <h4 style="color: #991b1b; margin: 0 0 12px 0;">❌ Wafanyakazi Waliokataa</h4>
+              <p style="color: #991b1b; margin: 0 0 12px 0; font-size: 0.875rem;">
+                Wafanyakazi wafuatayo waliwahi kuchaguliwa lakini walikataa kazi hii:
+              </p>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                @foreach($declinedWorkers as $worker)
+                  <div style="background: white; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
+                    <span style="color: #dc2626;">❌</span>
+                    <span style="color: #374151; font-weight: 500;">{{ $worker->name }}</span>
+                  </div>
+                @endforeach
+              </div>
+            </div>
+          @endif
         @endif
       @endauth
     </div>
@@ -633,7 +656,7 @@
             @endif
 
             @auth
-              @if(auth()->user()->id === $job->user_id && $job->status === 'posted' && $comment->user->role === 'mfanyakazi')
+              @if(auth()->user()->id === $job->user_id && in_array($job->status, ['posted', 'offered']) && $comment->user->role === 'mfanyakazi')
                 <div class="comment-actions">
                   <form method="post" action="{{ route('jobs.accept', [$job, $comment]) }}">
                     @csrf

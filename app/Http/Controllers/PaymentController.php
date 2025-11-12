@@ -4,10 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\{Job, Payment, Wallet, WalletTransaction};
 use App\Services\ZenoPayService;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\DB;
 
 class PaymentController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     public function poll(Job $job, ZenoPayService $zeno)
     {
         $payment = $job->payment;
@@ -77,12 +85,23 @@ class PaymentController extends Controller
                             'reference'   => "JOB_POST_{$job->id}",
                         ]);
                     });
+
+                    // Send notifications after transaction
+                    if ($job->muhitaji) {
+                        $this->notificationService->notifyMuhitajiJobPosted($job, $job->muhitaji);
+                    }
+                    // Notify all workers about new job
+                    $this->notificationService->notifyNewJobPosted($job);
                 }
                 
                 // Handle muhitaji job posting payment
                 elseif ($job->poster_type !== 'mfanyakazi' && $job->status === 'posted') {
-                    // Job is already posted, this might be an additional payment for price increase
-                    // No additional action needed for muhitaji job posting
+                    // Notify muhitaji about their posted job
+                    if ($job->muhitaji) {
+                        $this->notificationService->notifyMuhitajiJobPosted($job, $job->muhitaji);
+                    }
+                    // Notify all workers about new job
+                    $this->notificationService->notifyNewJobPosted($job);
                 }
             }
         }
