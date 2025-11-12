@@ -711,10 +711,6 @@
   </div>
 @endforeach
       </div>
-
-        <div class="pagination">
-{{ $jobs->links() }}
-        </div>
       @else
         <div class="empty-state">
           <div class="empty-icon">🔍</div>
@@ -993,12 +989,12 @@
     // Get jobs data from PHP - try different approaches
     let jobs;
     try {
-      jobs = @json($jobs->items());
-      console.log('📊 Jobs data from @json($jobs->items()):', jobs);
+      jobs = @json($jobs);
+      console.log('📊 Jobs data from @json($jobs):', jobs);
     } catch (error) {
-      console.error('❌ Error with @json($jobs->items()):', error);
+      console.error('❌ Error with @json($jobs):', error);
       // Try alternative approach
-      jobs = {!! json_encode($jobs->items()) !!};
+      jobs = {!! json_encode($jobs) !!};
       console.log('📊 Jobs data from json_encode:', jobs);
     }
     
@@ -1167,7 +1163,7 @@
     console.log('🔄 Adding fallback job markers with real coordinates...');
     
     // Get real job data directly from PHP
-    const realJobs = {!! json_encode($jobs->items()) !!};
+    const realJobs = {!! json_encode($jobs) !!};
     
     console.log('📊 Fallback jobs data:', realJobs);
     

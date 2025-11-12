@@ -24,11 +24,11 @@ class FeedController extends Controller
             ->whereIn('status', ['posted', 'offered'])  // Show both posted and offered (declined) jobs
             ->notDeclinedBy($user->id)  // Exclude jobs declined by this worker
             ->when($cat, fn($q)=>$q->whereHas('category', fn($qq)=>$qq->where('slug',$cat)))
-            ->latest()->paginate(12);
+            ->latest()->get();
 
         // Calculate distances for each job (only if user has location)
         if ($user->hasLocation()) {
-            $jobs->getCollection()->transform(function ($job) use ($user) {
+            $jobs->transform(function ($job) use ($user) {
                 $distanceInfo = LocationService::getDistanceInfo(
                     $user->lat, 
                     $user->lng, 
@@ -41,7 +41,7 @@ class FeedController extends Controller
             });
         } else {
             // If user doesn't have location, set default distance info
-            $jobs->getCollection()->transform(function ($job) {
+            $jobs->transform(function ($job) {
                 $job->distance_info = [
                     'distance' => null,
                     'category' => 'unknown',
@@ -57,14 +57,13 @@ class FeedController extends Controller
         // Filter by distance if specified
         if ($distance) {
             $maxDistance = (float) $distance;
-            $filteredJobs = $jobs->getCollection()->filter(function ($job) use ($maxDistance) {
+            $jobs = $jobs->filter(function ($job) use ($maxDistance) {
                 return $job->distance_info['distance'] !== null && $job->distance_info['distance'] <= $maxDistance;
             });
-            $jobs->setCollection($filteredJobs);
         }
 
         // Smart sorting: prioritize jobs with valid distances, then by distance
-        $sortedJobs = $jobs->getCollection()->sortBy(function ($job) {
+        $jobs = $jobs->sortBy(function ($job) {
             $distance = $job->distance_info['distance'] ?? null;
             $category = $job->distance_info['category'] ?? 'unknown';
             
@@ -78,8 +77,6 @@ class FeedController extends Controller
             
             return $distance ?? 999;
         });
-
-        $jobs->setCollection($sortedJobs);
 
         return view('feed.index', compact('jobs','cat'));
     }
