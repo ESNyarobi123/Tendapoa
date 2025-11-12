@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\{Job, Category, Wallet, WalletTransaction};
-use App\Services\ZenoPayService;
+use App\Services\{ZenoPayService, NotificationService};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -11,6 +11,13 @@ use Illuminate\Support\Str;
 
 class JobController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     private function ensureMuhitajiOrAdmin(): void
     {
         $role = Auth::user()->role ?? null;
@@ -478,6 +485,14 @@ class JobController extends Controller
                 'description' => "Job posting fee for: {$job->title}",
                 'reference'   => "JOB_POST_{$job->id}",
             ]);
+
+            // Send notifications after successful payment
+            $user = Auth::user();
+            if ($user) {
+                $this->notificationService->notifyMuhitajiJobPosted($job, $user);
+            }
+            // Notify all workers about new job
+            $this->notificationService->notifyNewJobPosted($job);
 
             return redirect()->route('dashboard')->with('success', 'Kazi imechapishwa kwa mafanikio! Ada ya TZS ' . number_format($postingFee) . ' imekatwa kutoka kwenye salio lako.');
         });
