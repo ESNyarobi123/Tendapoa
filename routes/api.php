@@ -157,8 +157,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/type/{type}', [\App\Http\Controllers\NotificationController::class, 'apiByType'])->name('api.notifications.by-type');
         Route::post('/{notification}/read', [\App\Http\Controllers\NotificationController::class, 'apiMarkAsRead'])->name('api.notifications.read');
         Route::post('/mark-all-read', [\App\Http\Controllers\NotificationController::class, 'apiMarkAllAsRead'])->name('api.notifications.mark-all-read');
-        Route::delete('/{notification}', [\App\Http\Controllers\NotificationController::class, 'apiDelete'])->name('api.notifications.delete');
         Route::delete('/clear-read', [\App\Http\Controllers\NotificationController::class, 'apiClearRead'])->name('api.notifications.clear-read');
+        Route::delete('/{notification}', [\App\Http\Controllers\NotificationController::class, 'apiDelete'])->name('api.notifications.delete');
     });
 
     // ---------------------------------------------------------------------
