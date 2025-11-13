@@ -243,5 +243,56 @@ class NotificationController extends Controller
             'status' => 'success'
         ]);
     }
+
+    /**
+     * API: Get notifications for a specific job
+     * GET /api/notifications/job/{jobId}
+     */
+    public function apiByJob(Request $request, int $jobId)
+    {
+        $user = Auth::user();
+        $perPage = $request->query('per_page', 20);
+        
+        $notifications = Notification::where('user_id', $user->id)
+            ->whereRaw("JSON_EXTRACT(data, '$.job_id') = ?", [$jobId])
+            ->latest()
+            ->paginate($perPage);
+        
+        return response()->json([
+            'success' => true,
+            'job_id' => $jobId,
+            'notifications' => $notifications->items(),
+            'pagination' => [
+                'current_page' => $notifications->currentPage(),
+                'last_page' => $notifications->lastPage(),
+                'per_page' => $notifications->perPage(),
+                'total' => $notifications->total(),
+                'has_more' => $notifications->hasMorePages(),
+            ],
+            'status' => 'success'
+        ]);
+    }
+
+    /**
+     * API: Get latest notifications (recent activity)
+     * GET /api/notifications/latest
+     */
+    public function apiLatest(Request $request)
+    {
+        $user = Auth::user();
+        $limit = $request->query('limit', 10);
+        
+        $notifications = Notification::where('user_id', $user->id)
+            ->latest()
+            ->limit($limit)
+            ->get();
+        
+        return response()->json([
+            'success' => true,
+            'notifications' => $notifications,
+            'unread_count' => $this->notificationService->getUnreadCount($user->id),
+            'status' => 'success'
+        ]);
+    }
 }
 

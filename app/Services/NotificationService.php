@@ -136,6 +136,99 @@ class NotificationService
     }
 
     /**
+     * MUHITAJI: Notify when they update a job
+     */
+    public function notifyMuhitajiJobUpdated(Job $job, User $muhitaji, array $changes = [])
+    {
+        $this->create(
+            $muhitaji->id,
+            Notification::TYPE_JOB_UPDATED,
+            'Kazi Imebadilishwa! ✏️',
+            "Kazi '{$job->title}' imebadilishwa kwa mafanikio.",
+            [
+                'job_id' => $job->id,
+                'job_title' => $job->title,
+                'changes' => $changes,
+            ]
+        );
+    }
+
+    /**
+     * WAFANYAKAZI: Notify all workers or assigned worker when job is updated
+     */
+    public function notifyWorkersJobUpdated(Job $job, array $changes = [])
+    {
+        $changeDescription = $this->formatJobChanges($changes);
+        
+        // If job has assigned worker, notify only them
+        if ($job->accepted_worker_id) {
+            $this->create(
+                $job->accepted_worker_id,
+                Notification::TYPE_JOB_UPDATED,
+                'Kazi Imebadilishwa! ✏️',
+                "Kazi '{$job->title}' ambayo umeichukua imebadilishwa. {$changeDescription}",
+                [
+                    'job_id' => $job->id,
+                    'job_title' => $job->title,
+                    'changes' => $changes,
+                    'muhitaji_name' => $job->muhitaji->name ?? null,
+                ]
+            );
+        } else {
+            // If job is still open, notify workers who commented/showed interest
+            $interestedWorkerIds = \App\Models\Comment::where('job_id', $job->id)
+                ->where('user_id', '!=', $job->user_id)
+                ->pluck('user_id')
+                ->unique()
+                ->toArray();
+
+            foreach ($interestedWorkerIds as $workerId) {
+                $this->create(
+                    $workerId,
+                    Notification::TYPE_JOB_UPDATED,
+                    'Kazi Imebadilishwa! ✏️',
+                    "Kazi '{$job->title}' uliyoonyesha nia imebadilishwa. {$changeDescription}",
+                    [
+                        'job_id' => $job->id,
+                        'job_title' => $job->title,
+                        'changes' => $changes,
+                    ]
+                );
+            }
+        }
+    }
+
+    /**
+     * Format job changes for notification message
+     */
+    private function formatJobChanges(array $changes): string
+    {
+        $messages = [];
+        
+        if (isset($changes['price'])) {
+            $messages[] = "Bei: TZS " . number_format($changes['price']['old']) . " → TZS " . number_format($changes['price']['new']);
+        }
+        
+        if (isset($changes['title'])) {
+            $messages[] = "Jina la kazi limebadilishwa";
+        }
+        
+        if (isset($changes['description'])) {
+            $messages[] = "Maelezo yamebadilishwa";
+        }
+        
+        if (isset($changes['location'])) {
+            $messages[] = "Mahali pamebadilishwa";
+        }
+        
+        if (isset($changes['category'])) {
+            $messages[] = "Kategoria imebadilishwa";
+        }
+        
+        return empty($messages) ? "Angalia mabadiliko." : implode(', ', $messages);
+    }
+
+    /**
      * MUHITAJI: Notify when worker accepts their job
      */
     public function notifyMuhitajiWorkerAccepted(Job $job, User $muhitaji, User $worker)

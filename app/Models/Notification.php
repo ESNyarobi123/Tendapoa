@@ -29,12 +29,16 @@ class Notification extends Model
 
     // Notification types constants
     public const TYPE_JOB_POSTED = 'job_posted';
+    public const TYPE_JOB_UPDATED = 'job_updated';
     public const TYPE_JOB_ACCEPTED = 'job_accepted';
     public const TYPE_JOB_DECLINED = 'job_declined';
     public const TYPE_JOB_COMPLETED = 'job_completed';
     public const TYPE_NEW_COMMENT = 'new_comment';
     public const TYPE_WORKER_ASSIGNED = 'worker_assigned';
     public const TYPE_JOB_AVAILABLE = 'job_available';
+    public const TYPE_PAYMENT_RECEIVED = 'payment_received';
+    public const TYPE_WITHDRAWAL_APPROVED = 'withdrawal_approved';
+    public const TYPE_WITHDRAWAL_REJECTED = 'withdrawal_rejected';
 
     /**
      * Relationship: Notification belongs to a user

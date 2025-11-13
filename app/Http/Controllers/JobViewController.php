@@ -272,6 +272,16 @@ class JobViewController extends Controller
 
         $comment->load('user');
 
+        // Notify muhitaji about new application
+        if ($job->muhitaji && Auth::id() !== $job->user_id) {
+            $this->notificationService->notifyMuhitajiNewComment(
+                $job, 
+                $job->muhitaji, 
+                Auth::user(), 
+                $r->input('message')
+            );
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Ombi lako limewasilishwa.',
@@ -322,6 +332,16 @@ class JobViewController extends Controller
         ]);
 
         $comment->load('user');
+
+        // Notify muhitaji about new offer
+        if ($job->muhitaji && Auth::id() !== $job->user_id) {
+            $this->notificationService->notifyMuhitajiNewComment(
+                $job, 
+                $job->muhitaji, 
+                Auth::user(), 
+                $r->input('message')
+            );
+        }
 
         return response()->json([
             'success' => true,

@@ -145,6 +145,24 @@ class JobController extends Controller
             return back()->withErrors(['price' => 'Huwezi kupunguza bei ya kazi. Unaweza kuongeza tu.']);
         }
 
+        // Track changes for notifications
+        $changes = [];
+        if ($job->title !== $r->input('title')) {
+            $changes['title'] = ['old' => $job->title, 'new' => $r->input('title')];
+        }
+        if ($job->description !== $r->input('description')) {
+            $changes['description'] = ['old' => $job->description, 'new' => $r->input('description')];
+        }
+        if ($job->price !== $newPrice) {
+            $changes['price'] = ['old' => $oldPrice, 'new' => $newPrice];
+        }
+        if ($job->category_id !== (int) $r->input('category_id')) {
+            $changes['category'] = ['old' => $job->category_id, 'new' => (int) $r->input('category_id')];
+        }
+        if ($job->lat !== (float) $r->input('lat') || $job->lng !== (float) $r->input('lng')) {
+            $changes['location'] = ['old' => ['lat' => $job->lat, 'lng' => $job->lng], 'new' => ['lat' => (float) $r->input('lat'), 'lng' => (float) $r->input('lng')]];
+        }
+
         // Update job details
         $job->update([
             'title'       => $r->input('title'),
@@ -155,6 +173,12 @@ class JobController extends Controller
             'lng'         => (float) $r->input('lng'),
             'address_text'=> $r->input('address_text'),
         ]);
+
+        // Send notifications about job update
+        if (!empty($changes)) {
+            $this->notificationService->notifyMuhitajiJobUpdated($job, Auth::user(), $changes);
+            $this->notificationService->notifyWorkersJobUpdated($job, $changes);
+        }
 
         // If price increased, process additional payment
         if ($priceDifference > 0) {
@@ -275,6 +299,24 @@ class JobController extends Controller
             ], 422);
         }
 
+        // Track changes for notifications
+        $changes = [];
+        if ($job->title !== $r->input('title')) {
+            $changes['title'] = ['old' => $job->title, 'new' => $r->input('title')];
+        }
+        if ($job->description !== $r->input('description')) {
+            $changes['description'] = ['old' => $job->description, 'new' => $r->input('description')];
+        }
+        if ($job->price !== $newPrice) {
+            $changes['price'] = ['old' => $oldPrice, 'new' => $newPrice];
+        }
+        if ($job->category_id !== (int) $r->input('category_id')) {
+            $changes['category'] = ['old' => $job->category_id, 'new' => (int) $r->input('category_id')];
+        }
+        if ($job->lat !== (float) $r->input('lat') || $job->lng !== (float) $r->input('lng')) {
+            $changes['location'] = ['old' => ['lat' => $job->lat, 'lng' => $job->lng], 'new' => ['lat' => (float) $r->input('lat'), 'lng' => (float) $r->input('lng')]];
+        }
+
         // Update job details
         $job->update([
             'title'       => $r->input('title'),
@@ -285,6 +327,12 @@ class JobController extends Controller
             'lng'         => (float) $r->input('lng'),
             'address_text'=> $r->input('address_text'),
         ]);
+
+        // Send notifications about job update
+        if (!empty($changes)) {
+            $this->notificationService->notifyMuhitajiJobUpdated($job, Auth::user(), $changes);
+            $this->notificationService->notifyWorkersJobUpdated($job, $changes);
+        }
 
         $response = [
             'message' => 'Kazi imebadilishwa kwa mafanikio!',
