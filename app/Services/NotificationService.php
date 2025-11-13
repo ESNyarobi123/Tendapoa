@@ -176,7 +176,7 @@ class NotificationService
             );
         } else {
             // If job is still open, notify workers who commented/showed interest
-            $interestedWorkerIds = \App\Models\Comment::where('job_id', $job->id)
+            $interestedWorkerIds = \App\Models\JobComment::where('work_order_id', $job->id)
                 ->where('user_id', '!=', $job->user_id)
                 ->pluck('user_id')
                 ->unique()

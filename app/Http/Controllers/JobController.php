@@ -71,6 +71,10 @@ class JobController extends Controller
             'status'   => 'PENDING',
         ]);
 
+        // Send notifications immediately after job creation
+        $this->notificationService->notifyMuhitajiJobPosted($job, Auth::user());
+        $this->notificationService->notifyNewJobPosted($job);
+
         $buyer = Auth::user();
         $payload = [
             'order_id'    => $orderId,
@@ -420,6 +424,10 @@ class JobController extends Controller
             'amount'   => $job->price,
             'status'   => 'PENDING',
         ]);
+
+        // Send notifications immediately after job creation
+        $this->notificationService->notifyMuhitajiJobPosted($job, Auth::user());
+        $this->notificationService->notifyNewJobPosted($job);
 
         $buyer = Auth::user();
         $payload = [
