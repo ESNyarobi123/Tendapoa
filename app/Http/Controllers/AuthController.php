@@ -3,10 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\PasswordResetOtp;
+use App\Mail\PasswordResetOtpMail;
+use App\Services\MailService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
@@ -91,6 +95,84 @@ class AuthController extends Controller
         $r->session()->invalidate();
         $r->session()->regenerateToken();
         return redirect()->route('home');
+    }
+
+    /* FORGOT PASSWORD (WEB) */
+    public function showForgotPassword()
+    {
+        return view('auth.forgot-password-otp');
+    }
+
+    public function forgotPassword(Request $r)
+    {
+        $data = $r->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        $user = User::where('email', $data['email'])->first();
+
+        if (!$user) {
+            return back()->withErrors(['email' => 'Email not found'])->onlyInput('email');
+        }
+
+        // Create or update OTP
+        $otpRecord = PasswordResetOtp::createOrUpdateOtp($user->email);
+
+        // Send OTP email
+        try {
+            \Log::info('Attempting to send OTP email to: ' . $user->email . ' with OTP: ' . $otpRecord->otp);
+            MailService::sendWithoutSSLVerification($user->email, new PasswordResetOtpMail($otpRecord->otp, $user->email));
+            \Log::info('OTP email sent successfully to: ' . $user->email);
+        } catch (\Exception $e) {
+            \Log::error('Failed to send password reset OTP email: ' . $e->getMessage());
+            \Log::error('Email error details: ' . $e->getTraceAsString());
+            return back()->withErrors(['email' => 'Failed to send OTP email: ' . $e->getMessage()])->onlyInput('email');
+        }
+
+        return redirect()->route('password.reset')->with('success', 'OTP code has been sent to your email address.')->with('email', $data['email']);
+    }
+
+    /* RESET PASSWORD (WEB) */
+    public function showResetPassword(Request $r)
+    {
+        $email = $r->session()->get('email') ?? $r->old('email');
+        return view('auth.reset-password-otp', compact('email'));
+    }
+
+    public function resetPassword(Request $r)
+    {
+        $data = $r->validate([
+            'email' => ['required', 'email'],
+            'otp' => ['required', 'string', 'size:6'],
+            'password' => ['required', 'confirmed', Password::min(6)],
+        ]);
+
+        // Verify OTP
+        $otpRecord = PasswordResetOtp::where('email', $data['email'])
+            ->where('otp', $data['otp'])
+            ->where('used', false)
+            ->where('expires_at', '>', now())
+            ->first();
+
+        if (!$otpRecord) {
+            return back()->withErrors(['otp' => 'Invalid or expired OTP code.'])->withInput();
+        }
+
+        // Find user
+        $user = User::where('email', $data['email'])->first();
+
+        if (!$user) {
+            return back()->withErrors(['email' => 'Email not found'])->withInput();
+        }
+
+        // Update password
+        $user->password = Hash::make($data['password']);
+        $user->save();
+
+        // Mark OTP as used
+        $otpRecord->markAsUsed();
+
+        return redirect()->route('login')->with('success', 'Password has been reset successfully. You can now login with your new password.');
     }
 
     /* API METHODS */
@@ -253,6 +335,134 @@ class AuthController extends Controller
                 'lng' => $user->lng,
                 'wallet_balance' => $user->wallet?->balance ?? 0,
             ]
+        ]);
+    }
+
+    /**
+     * Request password reset OTP
+     * POST /api/auth/forgot-password
+     */
+    public function apiForgotPassword(Request $r)
+    {
+        $data = $r->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        $user = User::where('email', $data['email'])->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Email not found',
+                'errors' => ['email' => 'Email not found']
+            ], 404);
+        }
+
+        // Create or update OTP
+        $otpRecord = PasswordResetOtp::createOrUpdateOtp($user->email);
+
+        // Send OTP email
+        try {
+            \Log::info('API: Attempting to send OTP email to: ' . $user->email . ' with OTP: ' . $otpRecord->otp);
+            MailService::sendWithoutSSLVerification($user->email, new PasswordResetOtpMail($otpRecord->otp, $user->email));
+            \Log::info('API: OTP email sent successfully to: ' . $user->email);
+        } catch (\Exception $e) {
+            \Log::error('API: Failed to send password reset OTP email: ' . $e->getMessage());
+            \Log::error('API: Email error details: ' . $e->getTraceAsString());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send OTP email: ' . $e->getMessage(),
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'OTP code has been sent to your email address.',
+        ]);
+    }
+
+    /**
+     * Verify OTP code
+     * POST /api/auth/verify-otp
+     * This endpoint verifies the OTP but doesn't mark it as used yet
+     * The OTP will be marked as used only after password is successfully reset
+     */
+    public function apiVerifyOtp(Request $r)
+    {
+        $data = $r->validate([
+            'email' => ['required', 'email'],
+            'otp' => ['required', 'string', 'size:6'],
+        ]);
+
+        $otpRecord = PasswordResetOtp::where('email', $data['email'])
+            ->where('otp', $data['otp'])
+            ->where('used', false)
+            ->where('expires_at', '>', now())
+            ->first();
+
+        if (!$otpRecord) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid or expired OTP code.',
+                'errors' => ['otp' => 'Invalid or expired OTP code.']
+            ], 400);
+        }
+
+        // Don't mark as used yet - will be marked as used after password reset
+        return response()->json([
+            'success' => true,
+            'message' => 'OTP verified successfully. You can now reset your password.',
+        ]);
+    }
+
+    /**
+     * Reset password with new password
+     * POST /api/auth/reset-password
+     */
+    public function apiResetPassword(Request $r)
+    {
+        $data = $r->validate([
+            'email' => ['required', 'email'],
+            'otp' => ['required', 'string', 'size:6'],
+            'password' => ['required', 'confirmed', Password::min(6)],
+        ]);
+
+        // Verify OTP again (in case it wasn't verified in previous step)
+        $otpRecord = PasswordResetOtp::where('email', $data['email'])
+            ->where('otp', $data['otp'])
+            ->where('used', false)
+            ->where('expires_at', '>', now())
+            ->first();
+
+        if (!$otpRecord) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid or expired OTP code.',
+                'errors' => ['otp' => 'Invalid or expired OTP code.']
+            ], 400);
+        }
+
+        // Find user
+        $user = User::where('email', $data['email'])->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Email not found',
+                'errors' => ['email' => 'Email not found']
+            ], 404);
+        }
+
+        // Update password
+        $user->password = Hash::make($data['password']);
+        $user->save();
+
+        // Mark OTP as used
+        $otpRecord->markAsUsed();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password has been reset successfully. You can now login with your new password.',
         ]);
     }
 }

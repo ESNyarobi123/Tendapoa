@@ -19,6 +19,25 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [AuthController::class,'register'])->name('register.post');
     Route::get('/login',    [AuthController::class,'showLogin'])->name('login');
     Route::post('/login',   [AuthController::class,'login'])->name('login.post');
+    
+    // Password reset routes
+    Route::get('/forgot-password', [AuthController::class,'showForgotPassword'])->name('password.forgot');
+    Route::post('/forgot-password', [AuthController::class,'forgotPassword'])->name('password.forgot.post');
+    Route::get('/reset-password', [AuthController::class,'showResetPassword'])->name('password.reset');
+    Route::post('/reset-password', [AuthController::class,'resetPassword'])->name('password.reset.post');
+    
+    // Test email route (for debugging - remove in production)
+    Route::get('/test-email', function() {
+        try {
+            $testEmail = request('email', 'test@example.com');
+            \App\Models\PasswordResetOtp::createOrUpdateOtp($testEmail);
+            $otp = \App\Models\PasswordResetOtp::where('email', $testEmail)->latest()->first();
+            \Illuminate\Support\Facades\Mail::to($testEmail)->send(new \App\Mail\PasswordResetOtpMail($otp->otp, $testEmail));
+            return response()->json(['success' => true, 'message' => 'Test email sent to ' . $testEmail, 'otp' => $otp->otp]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    })->name('test.email');
 });
 
 // Logout

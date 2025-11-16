@@ -50,15 +50,33 @@ Route::get('/categories', [CategoryController::class, 'apiIndex'])->name('api.ca
 
 /**
  * Authentication (public + protected)
- * - POST /api/auth/register  -> create account & get token
- * - POST /api/auth/login     -> issue Sanctum token
- * - GET  /api/auth/user      -> current user (protected)
- * - GET  /api/auth/profile   -> user profile with wallet (protected)
- * - POST /api/auth/logout    -> revoke current token (protected)
+ * 
+ * Public Endpoints:
+ * - POST /api/auth/register      -> create account & get token
+ * - POST /api/auth/login          -> issue Sanctum token
+ * - POST /api/auth/forgot-password -> request password reset OTP (sends OTP to email)
+ * - POST /api/auth/verify-otp     -> verify OTP code (optional step)
+ * - POST /api/auth/reset-password -> reset password with OTP + new password
+ * 
+ * Protected Endpoints (require Bearer token):
+ * - GET  /api/auth/user           -> current user info
+ * - GET  /api/auth/profile        -> user profile with wallet balance
+ * - POST /api/auth/logout         -> revoke current token
+ * 
+ * Password Reset Flow:
+ * 1. POST /api/auth/forgot-password {email} -> OTP sent to email
+ * 2. POST /api/auth/verify-otp {email, otp} -> verify OTP (optional)
+ * 3. POST /api/auth/reset-password {email, otp, password, password_confirmation} -> reset password
+ * 4. POST /api/auth/login {email, new_password} -> login with new password
  */
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'apiRegister'])->name('api.auth.register');
     Route::post('/login', [AuthController::class, 'apiLogin'])->name('api.auth.login');
+    
+    // Password reset routes (public)
+    Route::post('/forgot-password', [AuthController::class, 'apiForgotPassword'])->name('api.auth.forgot-password');
+    Route::post('/verify-otp', [AuthController::class, 'apiVerifyOtp'])->name('api.auth.verify-otp');
+    Route::post('/reset-password', [AuthController::class, 'apiResetPassword'])->name('api.auth.reset-password');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/user', function (Request $request) {
