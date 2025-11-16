@@ -498,6 +498,14 @@
 
             <!-- Job Actions -->
             <div style="display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap;">
+              {{-- Chat button - available after being selected (accepted_worker_id is set) --}}
+              @if(isset($job->accepted_worker_id) && $job->accepted_worker_id && auth()->id() === $job->accepted_worker_id)
+                <a href="{{ route('chat.show', $job) }}" class="btn btn-success" style="text-decoration: none;">
+                  <span>💬</span>
+                  Mazungumzo na Muhitaji
+                </a>
+              @endif
+
               @if(($status === 'assigned' && ($mfResp === '' || $mfResp === 'pending')) || $status === 'offered')
                 <form method="POST" action="{{ $acceptUrl($job->id) }}" style="display: inline;">
                   @csrf

@@ -29,7 +29,7 @@ class ChatController extends Controller
 
         // Allow access if: muhitaji, commented mfanyakazi, or accepted worker
         if (!$isMuhitaji && !$hasCommented && !$isAcceptedWorker) {
-            abort(403, 'Huna ruhusa ya kuona mazungumzo haya. Tuma comment kwanza.');
+            abort(403, 'Huna ruhusa ya kuona mazungumzo haya. Umepaswa kuchaguliwa na muhitaji au kutuma comment kwanza.');
         }
 
         // Determine the other user for the conversation
@@ -93,7 +93,7 @@ class ChatController extends Controller
 
         // Allow sending if: muhitaji, commented mfanyakazi, or accepted worker
         if (!$isMuhitaji && !$hasCommented && !$isAcceptedWorker) {
-            abort(403, 'Huna ruhusa ya kutuma ujumbe. Tuma comment kwanza.');
+            abort(403, 'Huna ruhusa ya kutuma ujumbe. Umepaswa kuchaguliwa na muhitaji au kutuma comment kwanza.');
         }
 
         $request->validate([
@@ -188,13 +188,13 @@ class ChatController extends Controller
     {
         $user = Auth::user();
 
-        // Check if user is muhitaji or has commented
+        // Check if user is muhitaji, has commented, or is accepted worker
         $isMuhitaji = $job->user_id === $user->id;
         $hasCommented = $job->comments()->where('user_id', $user->id)->exists();
         $isAcceptedWorker = $job->accepted_worker_id === $user->id;
 
         if (!$isMuhitaji && !$hasCommented && !$isAcceptedWorker) {
-            abort(403);
+            abort(403, 'Huna ruhusa. Umepaswa kuchaguliwa na muhitaji au kutuma comment kwanza.');
         }
 
         $lastId = $request->get('last_id', 0);
@@ -320,7 +320,7 @@ class ChatController extends Controller
         // Allow access if: muhitaji, commented mfanyakazi, or accepted worker
         if (!$isMuhitaji && !$hasCommented && !$isAcceptedWorker) {
             return response()->json([
-                'error' => 'Huna ruhusa ya kuona mazungumzo haya. Tuma comment kwanza.',
+                'error' => 'Huna ruhusa ya kuona mazungumzo haya. Umepaswa kuchaguliwa na muhitaji au kutuma comment kwanza.',
                 'status' => 'forbidden'
             ], 403);
         }
@@ -408,7 +408,7 @@ class ChatController extends Controller
         // Allow sending if: muhitaji, commented mfanyakazi, or accepted worker
         if (!$isMuhitaji && !$hasCommented && !$isAcceptedWorker) {
             return response()->json([
-                'error' => 'Huna ruhusa ya kutuma ujumbe. Tuma comment kwanza.',
+                'error' => 'Huna ruhusa ya kutuma ujumbe. Umepaswa kuchaguliwa na muhitaji au kutuma comment kwanza.',
                 'status' => 'forbidden'
             ], 403);
         }
@@ -463,14 +463,14 @@ class ChatController extends Controller
     {
         $user = Auth::user();
 
-        // Check if user is muhitaji or has commented
+        // Check if user is muhitaji, has commented, or is accepted worker
         $isMuhitaji = $job->user_id === $user->id;
         $hasCommented = $job->comments()->where('user_id', $user->id)->exists();
         $isAcceptedWorker = $job->accepted_worker_id === $user->id;
 
         if (!$isMuhitaji && !$hasCommented && !$isAcceptedWorker) {
             return response()->json([
-                'error' => 'Huna ruhusa.',
+                'error' => 'Huna ruhusa. Umepaswa kuchaguliwa na muhitaji au kutuma comment kwanza.',
                 'status' => 'forbidden'
             ], 403);
         }
