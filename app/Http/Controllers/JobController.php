@@ -26,6 +26,24 @@ class JobController extends Controller
         }
     }
 
+    private function normalizeMsisdn(?string $phone): string
+    {
+        $digits = preg_replace('/\D+/', '', $phone ?? '');
+        if ($digits === '') {
+            return '000000000';
+        }
+
+        if (Str::startsWith($digits, '255')) {
+            return $digits;
+        }
+
+        if (Str::startsWith($digits, '0')) {
+            $digits = substr($digits, 1);
+        }
+
+        return '255'.$digits;
+    }
+
     public function create()
     {
         $this->ensureMuhitajiOrAdmin();
@@ -80,7 +98,7 @@ class JobController extends Controller
             'order_id'    => $orderId,
             'buyer_email' => $buyer?->email ?? 'client@tendapoa.local',
             'buyer_name'  => $buyer?->name  ?? 'Client',
-            'buyer_phone' => $r->input('phone'),
+            'buyer_phone' => $this->normalizeMsisdn($r->input('phone')),
             'amount'      => $job->price,
             'webhook_url' => route('zeno.webhook'),
         ];
@@ -198,7 +216,7 @@ class JobController extends Controller
                 'order_id'    => $orderId,
                 'buyer_email' => $buyer?->email ?? 'client@tendapoa.local',
                 'buyer_name'  => $buyer?->name  ?? 'Client',
-                'buyer_phone' => $buyer?->phone ?? '000000000',
+                'buyer_phone' => $this->normalizeMsisdn($buyer?->phone),
                 'amount'      => $priceDifference,
                 'webhook_url' => route('zeno.webhook'),
             ];
@@ -364,7 +382,7 @@ class JobController extends Controller
                 'order_id'    => $orderId,
                 'buyer_email' => $buyer?->email ?? 'client@tendapoa.local',
                 'buyer_name'  => $buyer?->name  ?? 'Client',
-                'buyer_phone' => $buyer?->phone ?? '000000000',
+                'buyer_phone' => $this->normalizeMsisdn($buyer?->phone),
                 'amount'      => $priceDifference,
                 'webhook_url' => route('zeno.webhook'),
             ];
@@ -434,7 +452,7 @@ class JobController extends Controller
             'order_id'    => $orderId,
             'buyer_email' => $buyer?->email ?? 'client@tendapoa.local',
             'buyer_name'  => $buyer?->name  ?? 'Client',
-            'buyer_phone' => $r->input('phone'),
+            'buyer_phone' => $this->normalizeMsisdn($r->input('phone')),
             'amount'      => $job->price,
             'webhook_url' => route('zeno.webhook'),
         ];
@@ -583,7 +601,7 @@ class JobController extends Controller
             'order_id'    => $orderId,
             'buyer_email' => $user->email ?? 'worker@tendapoa.local',
             'buyer_name'  => $user->name ?? 'Worker',
-            'buyer_phone' => $request->input('phone'),
+            'buyer_phone' => $this->normalizeMsisdn($request->input('phone')),
             'amount'      => $postingFee,
             'webhook_url' => route('zeno.webhook'),
         ];
