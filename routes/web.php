@@ -8,6 +8,7 @@ use App\Http\Controllers\{
     ChatController
 };
 use App\Http\Controllers\Admin\WithdrawalAdminController;
+use App\Http\Controllers\Admin\PushNotificationController;
 use App\Http\Controllers\Api\DashboardController as ApiDashboardController;
 
 // Landing
@@ -128,6 +129,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/withdrawals',                     [WithdrawalAdminController::class,'index'])->name('admin.withdrawals');
         Route::post('/withdrawals/{withdrawal}/paid',  [WithdrawalAdminController::class,'markPaid'])->name('admin.withdrawals.paid');
         Route::post('/withdrawals/{withdrawal}/reject',[WithdrawalAdminController::class,'reject'])->name('admin.withdrawals.reject');
+
+        // Push Notifications
+        Route::get('/push-notifications', [PushNotificationController::class,'index'])->name('admin.push-notifications.index');
+        Route::post('/push-notifications/send', [PushNotificationController::class,'send'])->name('admin.push-notifications.send');
+        Route::get('/push-notifications/history', [PushNotificationController::class,'history'])->name('admin.push-notifications.history');
+        Route::get('/push-notifications/{id}', [PushNotificationController::class,'show'])->name('admin.push-notifications.show');
 
         // Legacy: Completed jobs leaderboard
         Route::get('/completed-jobs', function () {

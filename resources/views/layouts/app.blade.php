@@ -60,6 +60,9 @@ input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radiu
               <a href="{{ route('admin.analytics') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                 📈 Analytics
               </a>
+              <a href="{{ route('admin.push-notifications.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                📱 Push Notifications
+              </a>
             </div>
           </div>
         </div>

@@ -17,6 +17,8 @@ use App\Http\Controllers\{
     CategoryController
 };
 use App\Http\Controllers\Admin\WithdrawalAdminController;
+use App\Http\Controllers\Admin\PushNotificationController;
+use App\Http\Controllers\Api\FcmTokenController;
 
 /*
 |--------------------------------------------------------------------------
@@ -190,6 +192,14 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ---------------------------------------------------------------------
+    // FCM Tokens (for mobile app)
+    // ---------------------------------------------------------------------
+    Route::prefix('fcm-token')->group(function () {
+        Route::post('/', [FcmTokenController::class, 'store'])->name('api.fcm-token.store');
+        Route::delete('/{token?}', [FcmTokenController::class, 'destroy'])->name('api.fcm-token.destroy');
+    });
+
+    // ---------------------------------------------------------------------
     // Profile quick info
     // ---------------------------------------------------------------------
     Route::get('/profile', function (Request $request) {
@@ -288,6 +298,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/withdrawals', [WithdrawalAdminController::class, 'apiIndex'])->name('api.admin.withdrawals');
         Route::post('/withdrawals/{withdrawal}/paid', [WithdrawalAdminController::class, 'apiMarkPaid'])->name('api.admin.withdrawals.paid');
         Route::post('/withdrawals/{withdrawal}/reject', [WithdrawalAdminController::class, 'apiReject'])->name('api.admin.withdrawals.reject');
+
+        // Push Notifications (Admin)
+        Route::prefix('push-notifications')->group(function () {
+            Route::get('/tokens', [PushNotificationController::class, 'getTokens'])->name('api.admin.push-notifications.tokens');
+            Route::post('/send', [PushNotificationController::class, 'send'])->name('api.admin.push-notifications.send');
+            Route::get('/history', [PushNotificationController::class, 'history'])->name('api.admin.push-notifications.history');
+            Route::get('/{id}', [PushNotificationController::class, 'show'])->name('api.admin.push-notifications.show');
+        });
 
         // Completed jobs leaderboard
         Route::get('/completed-jobs', function () {

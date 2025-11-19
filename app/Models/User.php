@@ -25,6 +25,9 @@ class User extends Authenticatable
     public function sentMessages(){ return $this->hasMany(PrivateMessage::class, 'sender_id'); }
     public function receivedMessages(){ return $this->hasMany(PrivateMessage::class, 'receiver_id'); }
     
+    // FCM Tokens
+    public function fcmTokens(){ return $this->hasMany(FcmToken::class); }
+    
     // Additional relationships for admin
     public function muhitaji(){ return $this->hasMany(Job::class, 'user_id'); }
     public function mfanyakazi(){ return $this->hasMany(Job::class, 'accepted_worker_id'); }
