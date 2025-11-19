@@ -10,12 +10,14 @@ class FirebaseService
 {
     protected $messaging;
 
+    protected $initializationError = null;
+
     public function __construct()
     {
         // Check if Firebase package is installed
         if (!class_exists(\Kreait\Firebase\Factory::class)) {
-            $error = 'Firebase package (kreait/firebase-php) is not installed. Run: composer require kreait/firebase-php --ignore-platform-req=ext-sodium';
-            Log::error($error);
+            $this->initializationError = 'Firebase package (kreait/firebase-php) is not installed. Run on server: composer require kreait/firebase-php --ignore-platform-req=ext-sodium';
+            Log::error($this->initializationError);
             $this->messaging = null;
             return;
         }
@@ -24,15 +26,17 @@ class FirebaseService
             $firebaseCredentialsPath = base_path('tendapoa-eb234-firebase-adminsdk-fbsvc-c3b97c7be3.json');
             
             if (!file_exists($firebaseCredentialsPath)) {
-                $error = 'Firebase credentials file not found at: ' . $firebaseCredentialsPath;
-                Log::error($error);
-                throw new \Exception($error);
+                $this->initializationError = 'Firebase credentials file not found at: ' . $firebaseCredentialsPath . '. Please upload the file to server.';
+                Log::error($this->initializationError);
+                $this->messaging = null;
+                return;
             }
 
             if (!is_readable($firebaseCredentialsPath)) {
-                $error = 'Firebase credentials file is not readable. Check file permissions.';
-                Log::error($error . ' Path: ' . $firebaseCredentialsPath);
-                throw new \Exception($error);
+                $this->initializationError = 'Firebase credentials file is not readable. Check file permissions. Path: ' . $firebaseCredentialsPath;
+                Log::error($this->initializationError);
+                $this->messaging = null;
+                return;
             }
 
             // Validate JSON file
@@ -40,23 +44,27 @@ class FirebaseService
             $credentials = json_decode($jsonContent, true);
             
             if (json_last_error() !== JSON_ERROR_NONE) {
-                $error = 'Invalid JSON in Firebase credentials file: ' . json_last_error_msg();
-                Log::error($error);
-                throw new \Exception($error);
+                $this->initializationError = 'Invalid JSON in Firebase credentials file: ' . json_last_error_msg();
+                Log::error($this->initializationError);
+                $this->messaging = null;
+                return;
             }
 
             if (empty($credentials['project_id']) || empty($credentials['private_key'])) {
-                $error = 'Firebase credentials file is missing required fields (project_id or private_key)';
-                Log::error($error);
-                throw new \Exception($error);
+                $this->initializationError = 'Firebase credentials file is missing required fields (project_id or private_key). Please check the file.';
+                Log::error($this->initializationError);
+                $this->messaging = null;
+                return;
             }
 
             $factory = (new \Kreait\Firebase\Factory)->withServiceAccount($firebaseCredentialsPath);
             $this->messaging = $factory->createMessaging();
             
             Log::info('Firebase initialized successfully', ['project_id' => $credentials['project_id']]);
+            $this->initializationError = null;
         } catch (\Exception $e) {
-            Log::error('Firebase initialization failed: ' . $e->getMessage(), [
+            $this->initializationError = 'Firebase initialization failed: ' . $e->getMessage() . ' (File: ' . basename($e->getFile()) . ', Line: ' . $e->getLine() . ')';
+            Log::error($this->initializationError, [
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
@@ -66,12 +74,20 @@ class FirebaseService
     }
 
     /**
+     * Get initialization error message
+     */
+    public function getInitializationError(): ?string
+    {
+        return $this->initializationError;
+    }
+
+    /**
      * Send notification to single FCM token
      */
     public function sendToToken(string $token, string $title, string $body, array $data = []): array
     {
         if (!$this->messaging) {
-            $error = 'Firebase messaging not initialized. Check if credentials file exists and is readable.';
+            $error = $this->initializationError ?? 'Firebase messaging not initialized. Check if credentials file exists and is readable.';
             Log::error($error);
             return ['success' => false, 'error' => $error];
         }
@@ -120,7 +136,7 @@ class FirebaseService
     public function sendToTokens(array $tokens, string $title, string $body, array $data = []): array
     {
         if (!$this->messaging) {
-            $error = 'Firebase messaging not initialized. Check credentials file.';
+            $error = $this->initializationError ?? 'Firebase messaging not initialized. Check credentials file.';
             Log::error($error);
             return [
                 'success' => 0, 

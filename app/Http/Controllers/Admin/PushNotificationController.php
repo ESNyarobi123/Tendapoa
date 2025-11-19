@@ -31,7 +31,11 @@ class PushNotificationController extends Controller
             ->limit(10)
             ->get();
 
-        return view('admin.push-notifications.index', compact('totalTokens', 'recentNotifications'));
+        // Check Firebase status
+        $firebaseError = $this->firebaseService->getInitializationError();
+        $firebaseReady = $firebaseError === null;
+
+        return view('admin.push-notifications.index', compact('totalTokens', 'recentNotifications', 'firebaseReady', 'firebaseError'));
     }
 
     /**

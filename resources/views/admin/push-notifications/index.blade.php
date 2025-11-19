@@ -344,6 +344,30 @@
       </div>
     </div>
 
+    @if(isset($firebaseReady) && !$firebaseReady)
+      <div class="alert alert-error" style="border-left: 4px solid #ef4444;">
+        <div style="display: flex; align-items: start; gap: 12px;">
+          <div style="font-size: 1.5rem;">⚠️</div>
+          <div style="flex: 1;">
+            <strong style="display: block; margin-bottom: 8px;">Firebase haija-setup kwa usahihi!</strong>
+            <div style="font-size: 0.9rem; line-height: 1.6;">
+              {{ $firebaseError ?? 'Firebase messaging not initialized' }}
+            </div>
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(239, 68, 68, 0.3);">
+              <strong>Jinsi ya kurekebisha:</strong>
+              <ol style="margin: 8px 0 0 20px; padding: 0;">
+                <li>SSH kwenye server: <code>ssh user@apis.tendapoa.com</code></li>
+                <li>Nenda kwenye project: <code>cd /path/to/project</code></li>
+                <li>Install package: <code>composer require kreait/firebase-php --ignore-platform-req=ext-sodium</code></li>
+                <li>Hakikisha file ya credentials ipo kwenye project root</li>
+                <li>Clear cache: <code>php artisan config:clear && php artisan cache:clear</code></li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </div>
+    @endif
+
     @if(session('success'))
       <div class="alert alert-success">
         ✅ {{ session('success') }}
