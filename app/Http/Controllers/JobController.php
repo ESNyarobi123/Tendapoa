@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\{Job, Category, Wallet, WalletTransaction};
-use App\Services\{ZenoPayService, NotificationService};
+use App\Services\{ZenoPayService, NotificationService, FirebaseService};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -12,10 +12,12 @@ use Illuminate\Support\Str;
 class JobController extends Controller
 {
     protected $notificationService;
+    protected $firebaseService;
 
-    public function __construct(NotificationService $notificationService)
+    public function __construct(NotificationService $notificationService, FirebaseService $firebaseService)
     {
         $this->notificationService = $notificationService;
+        $this->firebaseService = $firebaseService;
     }
 
     private function ensureMuhitajiOrAdmin(): void
@@ -92,6 +94,9 @@ class JobController extends Controller
         // Send notifications immediately after job creation
         $this->notificationService->notifyMuhitajiJobPosted($job, Auth::user());
         $this->notificationService->notifyNewJobPosted($job);
+
+        // Send Firebase push notification to all users about new job
+        $this->sendNewJobPushNotification($job);
 
         $buyer = Auth::user();
         $payload = [
@@ -447,6 +452,9 @@ class JobController extends Controller
         $this->notificationService->notifyMuhitajiJobPosted($job, Auth::user());
         $this->notificationService->notifyNewJobPosted($job);
 
+        // Send Firebase push notification to all users about new job
+        $this->sendNewJobPushNotification($job);
+
         $buyer = Auth::user();
         $payload = [
             'order_id'    => $orderId,
@@ -568,6 +576,9 @@ class JobController extends Controller
             // Notify all workers about new job
             $this->notificationService->notifyNewJobPosted($job);
 
+            // Send Firebase push notification to all users about new job
+            $this->sendNewJobPushNotification($job);
+
             return redirect()->route('dashboard')->with('success', 'Kazi imechapishwa kwa mafanikio! Ada ya TZS ' . number_format($postingFee) . ' imekatwa kutoka kwenye salio lako.');
         });
     }
@@ -612,5 +623,52 @@ class JobController extends Controller
         }
 
         return redirect()->route('jobs.pay.wait', $job);
+    }
+
+    /**
+     * Send Firebase push notification when new job is posted
+     */
+    private function sendNewJobPushNotification(Job $job)
+    {
+        try {
+            // Load job relationships
+            $job->load(['category', 'muhitaji']);
+
+            // Format notification title
+            $title = "Kazi Mpya Imepostwa! 🎉";
+
+            // Format notification body with job details
+            $categoryName = $job->category->name ?? 'Kazi';
+            $price = number_format($job->price);
+            $description = $job->description ? substr(strip_tags($job->description), 0, 100) : '';
+            
+            $body = "{$job->title}\n";
+            $body .= "Kategoria: {$categoryName}\n";
+            $body .= "Bei: TZS {$price}";
+            
+            if ($description) {
+                $body .= "\n" . $description . (strlen($job->description) > 100 ? '...' : '');
+            }
+
+            // Prepare data payload for deep linking
+            $data = [
+                'type' => 'new_job',
+                'job_id' => (string) $job->id,
+                'job_title' => $job->title,
+                'job_price' => (string) $job->price,
+                'category' => $categoryName,
+                'action' => 'view_job',
+            ];
+
+            // Send to all active FCM tokens
+            $this->firebaseService->sendToAll($title, $body, Auth::id());
+
+        } catch (\Exception $e) {
+            // Log error but don't break the job creation process
+            \Log::error('Failed to send Firebase notification for new job: ' . $e->getMessage(), [
+                'job_id' => $job->id,
+                'error' => $e->getTraceAsString()
+            ]);
+        }
     }
 }
