@@ -406,6 +406,18 @@
               <span>❌ {{ $notification->failed_sends }} imeshindwa</span>
               <span class="status-badge status-{{ $notification->status }}">{{ $notification->status }}</span>
             </div>
+            @if($notification->errors && count($notification->errors) > 0)
+              <details style="margin-top: 12px;" open>
+                <summary style="cursor: pointer; color: #ef4444; font-weight: 600; padding: 8px; background: #fee2e2; border-radius: 8px;">🔍 Tazama Makosa ({{ count($notification->errors) }})</summary>
+                <div style="margin-top: 8px; padding: 12px; background: #fee2e2; border-radius: 8px; font-size: 0.875rem; max-height: 300px; overflow-y: auto;">
+                  @foreach($notification->errors as $error)
+                    <div style="margin-bottom: 8px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #ef4444;">
+                      <strong>❌</strong> {{ $error }}
+                    </div>
+                  @endforeach
+                </div>
+              </details>
+            @endif
           </div>
           
         @endforeach
