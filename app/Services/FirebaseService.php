@@ -22,6 +22,7 @@ class FirebaseService
             if (!file_exists($firebaseCredentialsPath)) {
                 throw new \Exception('Firebase credentials file not found');
             }
+            
 
             $factory = (new Factory)->withServiceAccount($firebaseCredentialsPath);
             $this->messaging = $factory->createMessaging();

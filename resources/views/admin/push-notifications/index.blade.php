@@ -407,6 +407,7 @@
               <span class="status-badge status-{{ $notification->status }}">{{ $notification->status }}</span>
             </div>
           </div>
+          
         @endforeach
       </div>
     @endif
