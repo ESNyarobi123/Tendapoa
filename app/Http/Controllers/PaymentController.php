@@ -27,7 +27,7 @@ class PaymentController extends Controller
 
         $resp = $zeno->checkOrder($payment->order_id);
 
-        if ($resp['ok'] && (($resp['json']['result'] ?? null) === 'SUCCESS' || ($resp['json']['payment_status'] ?? null) === 'COMPLETED')) {
+        if ($resp['ok'] && data_get($resp, 'json.data.0.payment_status') === 'COMPLETED') {
             $payment->update([
                 'status'     => 'COMPLETED',
                 'resultcode' => $resp['json']['resultcode'] ?? null,
@@ -53,7 +53,7 @@ class PaymentController extends Controller
         $payload = request()->all();
         $payment = Payment::where('order_id', $payload['order_id'] ?? '')->first();
 
-        if ($payment && (($payload['payment_status'] ?? '') === 'COMPLETED' || ($payload['result'] ?? '') === 'SUCCESS')) {
+        if ($payment && ($payload['payment_status'] ?? '') === 'COMPLETED') {
             $payment->update([
                 'status'    => 'COMPLETED',
                 'reference' => $payload['reference'] ?? null,
@@ -134,7 +134,7 @@ class PaymentController extends Controller
 
         $resp = $zeno->checkOrder($payment->order_id);
 
-        if ($resp['ok'] && (($resp['json']['result'] ?? null) === 'SUCCESS' || ($resp['json']['payment_status'] ?? null) === 'COMPLETED')) {
+        if ($resp['ok'] && data_get($resp, 'json.data.0.payment_status') === 'COMPLETED') {
             $payment->update([
                 'status'     => 'COMPLETED',
                 'resultcode' => $resp['json']['resultcode'] ?? null,
