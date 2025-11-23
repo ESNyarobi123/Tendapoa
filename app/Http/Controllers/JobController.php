@@ -671,4 +671,58 @@ class JobController extends Controller
             ]);
         }
     }
+    /**
+     * Cancel payment and delete job
+     */
+    public function cancelPayment(Job $job)
+    {
+        // Ensure user owns the job
+        if ($job->user_id !== Auth::id()) {
+            abort(403, 'Huna ruhusa.');
+        }
+
+        // Only allow cancelling if payment is pending
+        if ($job->payment && $job->payment->status === 'PENDING') {
+            $job->payment->update(['status' => 'CANCELLED']);
+            
+            // Delete the job since payment failed/cancelled
+            $job->delete();
+            
+            return redirect()->route('dashboard')->with('info', 'Mchakato wa malipo umekatishwa na kazi imefutwa.');
+        }
+
+        return redirect()->route('dashboard')->with('error', 'Huwezi kukatisha malipo haya kwa sasa.');
+    }
+
+    /**
+     * API: Cancel payment and delete job
+     */
+    public function apiCancelPayment(Job $job)
+    {
+        // Ensure user owns the job
+        if ($job->user_id !== Auth::id()) {
+            return response()->json([
+                'error' => 'Huna ruhusa ya kukatisha malipo haya.',
+                'status' => 'forbidden'
+            ], 403);
+        }
+
+        // Only allow cancelling if payment is pending
+        if ($job->payment && $job->payment->status === 'PENDING') {
+            $job->payment->update(['status' => 'CANCELLED']);
+            
+            // Delete the job since payment failed/cancelled
+            $job->delete();
+            
+            return response()->json([
+                'message' => 'Mchakato wa malipo umekatishwa na kazi imefutwa.',
+                'status' => 'cancelled'
+            ]);
+        }
+
+        return response()->json([
+            'error' => 'Huwezi kukatisha malipo haya kwa sasa (huenda yamekamilika au yameshafeli).',
+            'status' => 'error'
+        ], 400);
+    }
 }

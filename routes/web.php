@@ -56,6 +56,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/jobs/{job}/wait',    [JobController::class,'wait'])->name('jobs.pay.wait');
     Route::get('/jobs/{job}/edit',    [JobController::class,'edit'])->name('jobs.edit');
     Route::put('/jobs/{job}',         [JobController::class,'update'])->name('jobs.update');
+    Route::post('/jobs/{job}/cancel-pay', [JobController::class,'cancelPayment'])->name('jobs.pay.cancel');
 
     // Mfanyakazi: create + pay (HTML)
     Route::get('/jobs/create-mfanyakazi', [JobController::class,'createMfanyakazi'])->name('jobs.create-mfanyakazi');

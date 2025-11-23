@@ -121,6 +121,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // Poll payment status for job
         Route::get('/{job}/payment-status', [PaymentController::class, 'apiPoll'])->name('api.jobs.payment-status');
 
+        // Cancel payment (API)
+        Route::post('/{job}/cancel-pay', [JobController::class, 'apiCancelPayment'])->name('api.jobs.pay.cancel');
+
         // Job comments
         Route::post('/{job}/comment', [JobViewController::class, 'apiComment'])->name('api.jobs.comment');
 
